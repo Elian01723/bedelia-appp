@@ -23,46 +23,75 @@
 
     <div id="app" class="h-full flex flex-col"></div>
 
+    <!-- Firebase SDKs (Compat / Modular) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
     <script>
-        const STORAGE_KEY = 'bedelia_app_fixed_v12';
-        
-        let state = loadState();
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBe0LAXM1mo0AUw6Rp4CzAPOhCdr4fk0m8",
+            authDomain: "bedelia-universitaria.firebaseapp.com",
+            databaseURL: "https://bedelia-universitaria-default-rtdb.firebaseio.com",
+            projectId: "bedelia-universitaria",
+            storageBucket: "bedelia-universitaria.firebasestorage.app",
+            messagingSenderId: "32460680912",
+            appId: "1:32460680912:web:db00cec9341469dab978d5",
+            measurementId: "G-HNYDNJ4PZG"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let state = {
+            currentUser: null,
+            activeTab: 'dashboard',
+            usuariosBD: [
+                { correo: 'bedelia.admin@universidad.edu', password: '123456', nombre: 'Administrador General', rol: 'Administrador' }
+            ],
+            profesores: [
+                { cc: '1098765432', nombre: 'Dr. Carlos Mendoza', email: 'carlos.mendoza@universidad.edu', depto: 'Ingeniería de Sistemas' }
+            ],
+            equipos: [
+                { codigo: 'VB-01', tipo: 'Video-beam', modelo: 'Epson PowerLite X49', estado: 'Disponible' },
+                { codigo: 'PC-01', tipo: 'Laptop', modelo: 'Dell Latitude 3420', estado: 'Disponible' },
+                { codigo: 'PC-02', tipo: 'Laptop', modelo: 'HP ProBook 450 G8', estado: 'Prestado' }
+            ],
+            solicitudesPendientes: [],
+            prestamos: [],
+            historialLogs: [],
+            toast: null
+        };
+
         let termsAccepted = false;
         let authView = 'login';
 
-        function loadState() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try { return JSON.parse(saved); } catch(e) { console.error(e); }
+        // Sincronización en tiempo real con Firebase Realtime Database
+        db.ref('bedelia_data').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                state.usuariosBD = data.usuariosBD || state.usuariosBD;
+                state.profesores = data.profesores || state.profesores;
+                state.equipos = data.equipos || state.equipos;
+                state.solicitudesPendientes = data.solicitudesPendientes || [];
+                state.prestamos = data.prestamos || [];
+                state.historialLogs = data.historialLogs || [];
+            } else {
+                saveState(); // Si está vacío, sube los datos iniciales
             }
-            return {
-                currentUser: null,
-                activeTab: 'dashboard',
-                usuariosBD: [
-                    { correo: 'bedelia.admin@universidad.edu', password: '123456', nombre: 'Administrador General', rol: 'Administrador' },
-                    { correo: 'profesor@universidad.edu', password: '123456', nombre: 'Dr. Carlos Mendoza', rol: 'Usuario' }
-                ],
-                profesores: [
-                    { cc: '1098765432', nombre: 'Dr. Carlos Mendoza', email: 'carlos.mendoza@universidad.edu', depto: 'Ingeniería de Sistemas' }
-                ],
-                equipos: [
-                    { codigo: 'VB-01', tipo: 'Video-beam', modelo: 'Epson PowerLite X49', estado: 'Disponible' },
-                    { codigo: 'PC-01', tipo: 'Laptop', modelo: 'Dell Latitude 3420', estado: 'Disponible' },
-                    { codigo: 'PC-02', tipo: 'Laptop', modelo: 'HP ProBook 450 G8', estado: 'Prestado' }
-                ],
-                solicitudesPendientes: [],
-                prestamos: [
-                    { id: 1, profesor: 'Dr. Carlos Mendoza', equipo: 'PC-02 (Laptop)', fecha: 'Hoy, 08:30 AM', estado: 'Activo' }
-                ],
-                historialLogs: [
-                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Sistema configurado con registro exclusivo para docentes.' }
-                ],
-                toast: null
-            };
-        }
+            render();
+        });
 
         function saveState() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            db.ref('bedelia_data').set({
+                usuariosBD: state.usuariosBD,
+                profesores: state.profesores,
+                equipos: state.equipos,
+                solicitudesPendientes: state.solicitudesPendientes,
+                prestamos: state.prestamos,
+                historialLogs: state.historialLogs
+            });
         }
 
         function registrarLog(tipo, descripcion) {
@@ -85,6 +114,7 @@
 
         function render() {
             const app = document.getElementById('app');
+            if (!app) return;
             if (!state.currentUser) {
                 app.innerHTML = authView === 'register' ? renderRegisterScreen() : renderLoginScreen();
                 return;
@@ -125,7 +155,7 @@
                                 <i class="fa-solid fa-graduation-cap text-2xl"></i>
                             </div>
                             <h1 class="text-2xl font-bold tracking-tight text-white">Bedelía Universitaria</h1>
-                            <p class="text-xs text-slate-400">Inicio de Sesión Académico</p>
+                            <p class="text-xs text-slate-400">Inicio de Sesión Académico (Sincronizado)</p>
                         </div>
 
                         <form onsubmit="handleLogin(event)" class="space-y-4">
@@ -155,7 +185,7 @@
                             </div>
 
                             <button type="submit" class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all">
-                                Iniciar Sesión en el Sistema
+                                Iniciar Sesión en la Nube
                             </button>
 
                             <div class="text-center pt-2">
@@ -178,7 +208,7 @@
                                 <i class="fa-solid fa-user-plus text-2xl"></i>
                             </div>
                             <h1 class="text-2xl font-bold tracking-tight text-white">Registro de Docente</h1>
-                            <p class="text-xs text-slate-400">Crea tu usuario para solicitar equipos</p>
+                            <p class="text-xs text-slate-400">Crea tu usuario en la base de datos cloud</p>
                         </div>
 
                         <form onsubmit="handleRegister(event)" class="space-y-4">
@@ -201,7 +231,7 @@
                             </div>
 
                             <button type="submit" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
-                                Registrar Cuenta de Docente
+                                Registrar Cuenta Cloud
                             </button>
 
                             <div class="text-center pt-2">
@@ -220,7 +250,7 @@
             const nombre = document.getElementById('regNombre').value.trim();
             const correo = document.getElementById('regCorreo').value.trim().toLowerCase();
             const password = document.getElementById('regPass').value;
-            const rol = 'Usuario'; // Fijo para que todo el que se registre sea Docente / Usuario
+            const rol = 'Usuario';
 
             if (state.usuariosBD.some(u => u.correo === correo)) {
                 showToast('Ya existe una cuenta con este correo', 'error');
@@ -234,9 +264,9 @@
                 state.profesores.push({ cc: ccMock, nombre, email: correo, depto: 'Facultad Académica' });
             }
 
-            registrarLog('REGISTRO', `Nuevo docente registrado: ${nombre} (${correo})`);
+            registrarLog('REGISTRO', `Nuevo docente registrado en la nube: ${nombre} (${correo})`);
             saveState();
-            showToast('¡Cuenta de docente registrada con éxito! Ya puedes iniciar sesión.');
+            showToast('¡Cuenta de docente registrada con éxito!');
             authView = 'login';
             render();
         }
@@ -266,8 +296,6 @@
         function handleLogout() {
             registrarLog('SESIÓN', `Cierre de sesión de ${state.currentUser.name}`);
             state.currentUser = null;
-            saveState();
-            showToast('Sesión finalizada', 'info');
             render();
         }
 
@@ -338,7 +366,7 @@
                     </div>
                     <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 font-medium flex items-center space-x-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Sincronizado en la Nube</span>
+                        <span>Firebase Cloud Sync</span>
                     </div>
                 </header>
             `;
@@ -371,7 +399,7 @@
                             <p class="text-3xl font-bold text-amber-400 mt-4">${state.solicitudesPendientes.length}</p>
                         </div>
                         <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cuentas en BD</span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cuentas en BD Cloud</span>
                             <p class="text-3xl font-bold text-white mt-4">${state.usuariosBD.length}</p>
                         </div>
                     </div>
@@ -603,7 +631,6 @@
                 saveState();
                 showToast('¡Solicitud enviada al Administrador con éxito!');
             }
-            render();
         }
 
         function aprobarSolicitud(id) {
@@ -621,7 +648,6 @@
                 registrarLog('APROBACIÓN', `Administrador ACEPTÓ solicitud de ${solicitud.equipo} para ${solicitud.profesor}`);
                 saveState();
                 showToast('¡Solicitud aceptada y equipo asignado!');
-                render();
             }
         }
 
@@ -635,7 +661,6 @@
                     registrarLog('RECHAZO', `Administrador RECHAZÓ solicitud de ${solicitud.equipo} para ${solicitud.profesor}. Motivo: ${motivoTexto}`);
                     saveState();
                     showToast('Solicitud rechazada correctamente', 'error');
-                    render();
                 }
             }
         }
@@ -651,7 +676,6 @@
                 registrarLog('DEVOLUCIÓN', `Se devolvió el equipo ${equipoStr}`);
                 saveState();
                 showToast('Equipo devuelto correctamente');
-                render();
             }
         }
 
@@ -670,10 +694,7 @@
             registrarLog('EQUIPO', `Se añadió equipo al inventario: ${codigo} - ${modelo}`);
             saveState();
             showToast('¡Equipo registrado con éxito!');
-            render();
         }
-
-        window.onload = function() { render(); };
     </script>
 </body>
 </html>
