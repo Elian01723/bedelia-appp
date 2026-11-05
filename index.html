@@ -3,15 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- App instalable (PWA) -->
-    <link rel="manifest" href="manifest.webmanifest">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Bedelía U">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="icon" type="image/png" href="icon-192.png">
     <title>Bedelía U - Dashboard y Control de Equipos</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -35,10 +26,11 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'bedelia_app_advanced_db_v3';
+        const STORAGE_KEY = 'bedelia_app_multiuser_db_v4';
         
         let state = loadState();
-        let termsAccepted = false; // Debe aceptar términos para poder iniciar sesión
+        let termsAccepted = false;
+        let authView = 'login'; // 'login' o 'register'
 
         function loadState() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -48,26 +40,21 @@
             return {
                 currentUser: null,
                 activeTab: 'dashboard',
+                usuariosBD: [
+                    { correo: 'bedelia.admin@universidad.edu', password: '123456', nombre: 'Administrador General', rol: 'Administrador' },
+                    { correo: 'profesor@universidad.edu', password: '123456', nombre: 'Docente de Prueba', rol: 'Usuario' }
+                ],
                 profesores: [
                     { cc: '1098765432', nombre: 'Dr. Carlos Mendoza' },
-                    { cc: '1023456789', nombre: 'Dra. Ana María Gómez' },
-                    { cc: '1045678912', nombre: 'Ing. Luis Fernando Ruiz' }
+                    { cc: '1023456789', nombre: 'Dra. Ana María Gómez' }
                 ],
                 equipos: [
                     { codigo: 'VB-01', tipo: 'Video-beam', modelo: 'Epson PowerLite X49', estado: 'Disponible' },
-                    { codigo: 'VB-02', tipo: 'Video-beam', modelo: 'Sony VPL-EX435', estado: 'Prestado' },
-                    { codigo: 'PC-01', tipo: 'Laptop', modelo: 'Dell Latitude 3420', estado: 'Disponible' },
-                    { codigo: 'PC-02', tipo: 'Laptop', modelo: 'Lenovo ThinkPad E14', estado: 'Prestado' }
+                    { codigo: 'PC-01', tipo: 'Laptop', modelo: 'Dell Latitude 3420', estado: 'Disponible' }
                 ],
-                prestamos: [
-                    { id: 101, cc: '1098765432', nombre: 'Dr. Carlos Mendoza', equipo: 'VB-02 - Video-beam (Sony VPL-EX435)', codigoEquipo: 'VB-02', horaSalida: '08:30 AM', estado: 'Activo' },
-                    { id: 102, cc: '1023456789', nombre: 'Dra. Ana María Gómez', equipo: 'PC-02 - Laptop (Lenovo ThinkPad E14)', codigoEquipo: 'PC-02', horaSalida: '09:15 AM', estado: 'Activo' }
-                ],
+                prestamos: [],
                 historialLogs: [
-                    { id: 1, fecha: 'Hoy, 09:15 AM', tipo: 'PRÉSTAMO', descripcion: 'Dra. Ana María Gómez retiró Laptop (PC-02)', color: 'blue' },
-                    { id: 2, fecha: 'Hoy, 08:30 AM', tipo: 'PRÉSTAMO', descripcion: 'Dr. Carlos Mendoza retiró Video-beam (VB-02)', color: 'blue' },
-                    { id: 3, fecha: 'Ayer, 02:00 PM', tipo: 'EQUIPO', descripcion: 'Se registró nuevo Video-beam (VB-02)', color: 'indigo' },
-                    { id: 4, fecha: 'Ayer, 10:00 AM', tipo: 'PROFESOR', descripcion: 'Se registró nuevo profesor Dr. Carlos Mendoza', color: 'emerald' }
+                    { id: 1, fecha: 'Hoy, 09:15 AM', tipo: 'SISTEMA', descripcion: 'Base de datos inicializada correctamente', color: 'blue' }
                 ],
                 toast: null
             };
@@ -77,10 +64,11 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }
 
-        function registrarLog(tipo, descripcion, color) {
+        function registrarLog(tipo, descripcion, color = 'blue') {
             const now = new Date();
             const fecha = `Hoy, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             state.historialLogs.unshift({ id: Date.now(), fecha, tipo, descripcion, color });
+            saveState();
         }
 
         function showToast(message, type = 'success') {
@@ -96,9 +84,8 @@
 
         function render() {
             const app = document.getElementById('app');
-
             if (!state.currentUser) {
-                app.innerHTML = renderLoginScreen();
+                app.innerHTML = authView === 'register' ? renderRegisterScreen() : renderLoginScreen();
                 return;
             }
 
@@ -133,96 +120,148 @@
                                 <i class="fa-solid fa-graduation-cap text-2xl"></i>
                             </div>
                             <h1 class="text-2xl font-bold tracking-tight text-white">Bedelía Universitaria</h1>
-                            <p class="text-xs text-slate-400">Panel administrativo con dashboard y control en tiempo real</p>
+                            <p class="text-xs text-slate-400">Inicia sesión con tu cuenta de Administrador o Usuario</p>
                         </div>
 
                         <form onsubmit="handleLogin(event)" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Usuario / Correo</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none">
-                                        <i class="fa-solid fa-envelope text-xs"></i>
-                                    </span>
-                                    <input type="text" id="loginUser" required autocomplete="off" placeholder="Ingrese su correo" oninput="hideLoginError()"
-                                        class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-blue-500 transition-all">
-                                </div>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Correo Electrónico</label>
+                                <input type="email" id="loginUser" required placeholder="ejemplo@universidad.edu"
+                                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-blue-500">
                             </div>
 
                             <div>
                                 <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Contraseña</label>
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 pointer-events-none">
-                                        <i class="fa-solid fa-lock text-xs"></i>
-                                    </span>
-                                    <input type="password" id="loginPass" required autocomplete="new-password" placeholder="Ingrese su contraseña" oninput="hideLoginError()"
-                                        class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-blue-500 transition-all">
-                                </div>
+                                <input type="password" id="loginPass" required placeholder="••••••••"
+                                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-blue-500">
                             </div>
 
                             <p id="loginError" class="hidden text-xs text-rose-400 flex items-center space-x-1.5">
                                 <i class="fa-solid fa-circle-exclamation"></i>
-                                <span>Usuario o contraseña incorrectos.</span>
+                                <span>Correo o contraseña incorrectos.</span>
                             </p>
 
-                            <!-- TÉRMINOS Y CONDICIONES -->
                             <div>
-                                <label class="flex items-start space-x-3 cursor-pointer select-none">
-                                    <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="onTermsChange(this.checked)"
-                                        class="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-950 accent-blue-600 cursor-pointer">
-                                    <span class="text-xs text-slate-400 leading-relaxed">
-                                        He leído y acepto los
-                                        <a href="#" onclick="openTerms(event)" class="text-blue-400 hover:text-blue-300 underline font-medium">Términos y Condiciones</a>
-                                        de uso del sistema.
-                                    </span>
+                                <label class="flex items-center space-x-3 cursor-pointer select-none">
+                                    <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="termsAccepted = this.checked"
+                                        class="h-4 w-4 rounded border-slate-700 bg-slate-950 accent-blue-600 cursor-pointer">
+                                    <span class="text-xs text-slate-400">Acepto los términos de uso del sistema</span>
                                 </label>
-                                <p id="termsError" class="hidden mt-2 text-xs text-rose-400 flex items-center space-x-1.5">
-                                    <i class="fa-solid fa-circle-exclamation"></i>
-                                    <span>Debes aceptar los Términos y Condiciones para iniciar sesión.</span>
-                                </p>
                             </div>
 
-                            <button type="submit" class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2">
-                                <span>Iniciar Sesión en el Sistema</span>
-                                <i class="fa-solid fa-arrow-right text-xs"></i>
+                            <button type="submit" class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all">
+                                Iniciar Sesión
                             </button>
 
-                            <!-- ACCESO INVITADO (solo lectura) -->
-                            <div class="flex items-center space-x-3">
-                                <div class="flex-1 h-px bg-slate-800"></div>
-                                <span class="text-[10px] uppercase tracking-wider text-slate-500">o</span>
-                                <div class="flex-1 h-px bg-slate-800"></div>
+                            <div class="text-center pt-2">
+                                <button type="button" onclick="authView='register'; render();" class="text-xs text-blue-400 hover:underline">
+                                    ¿No tienes cuenta? <strong>Regístrate aquí (Admin o Usuario)</strong>
+                                </button>
                             </div>
-                            <button type="button" onclick="handleGuestLogin()" class="w-full py-3 px-4 bg-slate-950 hover:bg-slate-800 border border-slate-700 text-slate-200 text-sm font-semibold rounded-xl transition-all flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-eye text-xs"></i>
-                                <span>Entrar como Invitado (solo lectura)</span>
-                            </button>
                         </form>
                     </div>
                 </div>
             `;
         }
 
+        function renderRegisterScreen() {
+            return `
+                <div class="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950">
+                    <div class="max-w-md w-full bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl p-8 space-y-6 fade-in">
+                        <div class="text-center space-y-2">
+                            <div class="inline-flex p-3.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-2xl mb-1">
+                                <i class="fa-solid fa-user-plus text-2xl"></i>
+                            </div>
+                            <h1 class="text-2xl font-bold tracking-tight text-white">Crear Nueva Cuenta</h1>
+                            <p class="text-xs text-slate-400">Registra un nuevo Administrador o Usuario</p>
+                        </div>
+
+                        <form onsubmit="handleRegister(event)" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Nombre Completo</label>
+                                <input type="text" id="regNombre" required placeholder="Ej. Juan Pérez"
+                                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Correo Electrónico</label>
+                                <input type="email" id="regCorreo" required placeholder="correo@universidad.edu"
+                                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Contraseña</label>
+                                <input type="password" id="regPass" required placeholder="••••••••"
+                                    class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Rol en el Sistema</label>
+                                <select id="regRol" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                                    <option value="Usuario">Usuario / Docente</option>
+                                    <option value="Administrador">Administrador</option>
+                                </select>
+                            </div>
+
+                            <button type="submit" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
+                                Registrar Cuenta en la BD
+                            </button>
+
+                            <div class="text-center pt-2">
+                                <button type="button" onclick="authView='login'; render();" class="text-xs text-slate-400 hover:text-white">
+                                    ← Volver al inicio de sesión
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('regNombre').value.trim();
+            const correo = document.getElementById('regCorreo').value.trim().toLowerCase();
+            const password = document.getElementById('regPass').value;
+            const rol = document.getElementById('regRol').value;
+
+            if (state.usuariosBD.some(u => u.correo === correo)) {
+                showToast('Ya existe una cuenta registrada con este correo', 'error');
+                return;
+            }
+
+            state.usuariosBD.push({ correo, password, nombre, rol });
+            registrarLog('REGISTRO', `Se creó nueva cuenta (${rol}): ${nombre} (${correo})`, 'indigo');
+            saveState();
+            showToast('¡Cuenta creada con éxito! Ya puedes iniciar sesión.');
+            authView = 'login';
+            render();
+        }
+
         function handleLogin(e) {
             e.preventDefault();
             if (!termsAccepted) {
-                const err = document.getElementById('termsError');
-                if (err) err.classList.remove('hidden');
+                alert('Debes aceptar los términos de uso.');
                 return;
             }
-            const userIngresado = (document.getElementById('loginUser').value || '').trim().toLowerCase();
-            const passIngresada = document.getElementById('loginPass').value || '';
-            if (userIngresado !== 'bedelia.admin@universidad.edu' || passIngresada !== '123456') {
-                const errCred = document.getElementById('loginError');
-                if (errCred) errCred.classList.remove('hidden');
+            const correo = document.getElementById('loginUser').value.trim().toLowerCase();
+            const pass = document.getElementById('loginPass').value;
+
+            const userFound = state.usuariosBD.find(u => u.correo === correo && u.password === pass);
+            if (!userFound) {
+                document.getElementById('loginError').classList.remove('hidden');
                 return;
             }
-            state.currentUser = { name: 'Operador Bedelía', role: 'Administrador General' };
+
+            state.currentUser = { name: userFound.nombre, role: userFound.rol, correo: userFound.correo };
+            registrarLog('SESIÓN', `Inicio de sesión exitoso: ${userFound.nombre} (${userFound.rol})`, 'blue');
             saveState();
-            showToast('¡Sesión iniciada correctamente!');
+            showToast(`¡Bienvenido, ${userFound.nombre}!`);
             render();
         }
 
         function handleLogout() {
+            registrarLog('SESIÓN', `Cierre de sesión de ${state.currentUser.name}`, 'purple');
             state.currentUser = null;
             saveState();
             showToast('Sesión finalizada', 'info');
@@ -235,7 +274,7 @@
                 { id: 'prestamos', label: 'Préstamos & Salidas', icon: 'fa-clipboard-list' },
                 { id: 'equipos', label: 'Gestión de Equipos', icon: 'fa-desktop' },
                 { id: 'profesores', label: 'Directorio Profesores', icon: 'fa-chalkboard-user' },
-                { id: 'historial', label: 'Historial y Logs', icon: 'fa-clock-rotate-left' }
+                { id: 'historial', label: 'Historial y Logs (BD)', icon: 'fa-clock-rotate-left' }
             ];
 
             return `
@@ -247,7 +286,7 @@
                             </div>
                             <div>
                                 <h2 class="font-bold text-sm tracking-wide text-white">BEDELÍA U</h2>
-                                <p class="text-[11px] text-slate-400">Control Inteligente</p>
+                                <p class="text-[11px] text-slate-400">Rol: ${state.currentUser.role}</p>
                             </div>
                         </div>
 
@@ -285,26 +324,15 @@
         }
 
         function renderHeader() {
-            const titles = {
-                dashboard: { title: 'Dashboard y Analítica', sub: 'Resumen general del estado de equipos y actividad reciente' },
-                prestamos: { title: 'Control de Salidas y Préstamos', sub: 'Gestione préstamos en tiempo real con búsqueda por CC o nombre' },
-                equipos: { title: 'Inventario de Equipos', sub: 'Administre computadores portátiles y video-beams disponibles' },
-                profesores: { title: 'Directorio de Profesores', sub: 'Base de datos de docentes habilitados en la institución' },
-                historial: { title: 'Registro y Auditoría de Actividad', sub: 'Historial completo de cada movimiento realizado en el sistema' }
-            };
-            const current = titles[state.activeTab] || {};
-
             return `
                 <header class="bg-slate-950/60 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
                     <div>
-                        <h1 class="text-base font-bold text-white">${current.title}</h1>
-                        <p class="text-xs text-slate-400">${current.sub}</p>
+                        <h1 class="text-base font-bold text-white">Panel de Control (${state.currentUser.role})</h1>
+                        <p class="text-xs text-slate-400">Usuario activo: ${state.currentUser.correo}</p>
                     </div>
-                    <div class="flex items-center space-x-3">
-                        <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 font-medium flex items-center space-x-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <span>Sistema Activo</span>
-                        </div>
+                    <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 font-medium flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Sincronizado</span>
                     </div>
                 </header>
             `;
@@ -313,142 +341,28 @@
         function renderToast() {
             if (!state.toast) return '';
             const bg = state.toast.type === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
-            const icon = state.toast.type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check';
             return `
                 <div class="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4 py-3 rounded-2xl border backdrop-blur-xl shadow-2xl ${bg} fade-in">
-                    <i class="fa-solid ${icon}"></i>
                     <span class="text-xs font-medium">${state.toast.message}</span>
                 </div>
             `;
         }
 
         function renderDashboardView() {
-            const totalPrestamosActivos = state.prestamos.filter(p => p.estado === 'Activo').length;
-            const totalEquipos = state.equipos.length;
-            const equiposDisponibles = state.equipos.filter(e => e.estado === 'Disponible').length;
-            const equiposPrestados = state.equipos.filter(e => e.estado === 'Prestado').length;
-            const totalProfes = state.profesores.length;
-
-            const videoBeams = state.equipos.filter(e => e.tipo.includes('Video-beam'));
-            const laptops = state.equipos.filter(e => e.tipo.includes('Laptop') || e.tipo.includes('Computador'));
-            const vbDisponibles = videoBeams.filter(e => e.estado === 'Disponible').length;
-            const pcDisponibles = laptops.filter(e => e.estado === 'Disponible').length;
-
             return `
                 <div class="space-y-6">
-                    <!-- Tarjetas de Estadísticas Principales -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Préstamos Activos</span>
-                                <div class="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                            </div>
-                            <div class="mt-4 flex items-baseline justify-between">
-                                <span class="text-3xl font-bold text-white">${totalPrestamosActivos}</span>
-                                <span class="text-xs text-blue-400 font-medium">Equipos fuera</span>
-                            </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Equipos Registrados</span>
+                            <p class="text-3xl font-bold text-white mt-4">${state.equipos.length}</p>
                         </div>
-
-                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Inventario Total</span>
-                                <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl"><i class="fa-solid fa-boxes-stacked"></i></div>
-                            </div>
-                            <div class="mt-4 flex items-baseline justify-between">
-                                <span class="text-3xl font-bold text-white">${totalEquipos}</span>
-                                <span class="text-xs text-indigo-400 font-medium">Dispositivos reg.</span>
-                            </div>
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Préstamos Activos</span>
+                            <p class="text-3xl font-bold text-white mt-4">${state.prestamos.length}</p>
                         </div>
-
-                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Disponibles</span>
-                                <div class="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl"><i class="fa-solid fa-circle-check"></i></div>
-                            </div>
-                            <div class="mt-4 flex items-baseline justify-between">
-                                <span class="text-3xl font-bold text-white">${equiposDisponibles}</span>
-                                <span class="text-xs text-emerald-400 font-medium">Listos para entrega</span>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Docentes en BD</span>
-                                <div class="p-2.5 bg-purple-500/10 text-purple-400 rounded-xl"><i class="fa-solid fa-users"></i></div>
-                            </div>
-                            <div class="mt-4 flex items-baseline justify-between">
-                                <span class="text-3xl font-bold text-white">${totalProfes}</span>
-                                <span class="text-xs text-purple-400 font-medium">Habilitados</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Gráficos y Desglose Visual -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Desglose por Tipo de Equipo -->
-                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                            <h3 class="font-bold text-white text-sm flex items-center justify-between">
-                                <span>Desglose por Tipo de Activo</span>
-                                <i class="fa-solid fa-chart-bar text-slate-500 text-xs"></i>
-                            </h3>
-                            <div class="space-y-4 pt-2">
-                                <div>
-                                    <div class="flex justify-between text-xs mb-1">
-                                        <span class="text-slate-300 font-medium">Laptops / Computadores (${laptops.length} total)</span>
-                                        <span class="text-emerald-400">${pcDisponibles} disponibles</span>
-                                    </div>
-                                    <div class="w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-800">
-                                        <div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: ${laptops.length ? (pcDisponibles / laptops.length) * 100 : 0}%"></div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div class="flex justify-between text-xs mb-1">
-                                        <span class="text-slate-300 font-medium">Video-beams (${videoBeams.length} total)</span>
-                                        <span class="text-emerald-400">${vbDisponibles} disponibles</span>
-                                    </div>
-                                    <div class="w-full bg-slate-900 h-3 rounded-full overflow-hidden border border-slate-800">
-                                        <div class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: ${videoBeams.length ? (vbDisponibles / videoBeams.length) * 100 : 0}%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Estado General del Inventario -->
-                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                            <h3 class="font-bold text-white text-sm flex items-center justify-between">
-                                <span>Estado Operativo del Inventario</span>
-                                <i class="fa-solid fa-circle-nodes text-slate-500 text-xs"></i>
-                            </h3>
-                            <div class="grid grid-cols-2 gap-4 pt-2">
-                                <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl text-center space-y-1">
-                                    <p class="text-2xl font-bold text-emerald-400">${equiposDisponibles}</p>
-                                    <p class="text-xs text-slate-400 font-medium">Disponibles en Bodega</p>
-                                </div>
-                                <div class="bg-slate-900/80 border border-slate-800 p-4 rounded-xl text-center space-y-1">
-                                    <p class="text-2xl font-bold text-amber-400">${equiposPrestados}</p>
-                                    <p class="text-xs text-slate-400 font-medium">Prestados / En Clase</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Actividad Reciente en el Dashboard -->
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-bold text-white text-sm">Últimos Movimientos Registrados</h3>
-                            <button onclick="switchTab('historial')" class="text-xs text-blue-400 hover:underline">Ver historial completo</button>
-                        </div>
-                        <div class="divide-y divide-slate-800 text-xs">
-                            ${state.historialLogs.slice(0, 4).map(log => `
-                                <div class="py-3 flex items-center justify-between">
-                                    <div class="flex items-center space-x-3">
-                                        <span class="w-2 h-2 rounded-full bg-${log.color === 'blue' ? 'blue' : log.color === 'indigo' ? 'indigo' : 'emerald'}-500"></span>
-                                        <span class="text-slate-200 font-medium">${log.descripcion}</span>
-                                    </div>
-                                    <span class="text-slate-500 text-[11px]">${log.fecha}</span>
-                                </div>
-                            `).join('')}
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cuentas en el Sistema</span>
+                            <p class="text-3xl font-bold text-white mt-4">${state.usuariosBD.length}</p>
                         </div>
                     </div>
                 </div>
@@ -456,426 +370,38 @@
         }
 
         function renderPrestamosView() {
-            const equiposDisponibles = state.equipos.filter(e => e.estado === 'Disponible');
-
+            const esAdmin = state.currentUser.role === 'Administrador';
             return `
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <!-- Formulario Salida -->
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div>
-                            <h3 class="font-bold text-white text-sm">Registrar Salida de Equipo</h3>
-                            <p class="text-xs text-slate-400">Seleccione docente y equipo disponible</p>
-                        </div>
-
+                    ${esAdmin ? `
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Registrar Préstamo</h3>
                         <form onsubmit="registrarPrestamo(event)" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Buscar Profesor (CC o Nombre)</label>
-                                <input type="text" id="busquedaProfesorInput" placeholder="Ej. 1098 o Carlos..." oninput="filtrarProfesoresDropdown(this.value)"
-                                    class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                                <div id="dropdownSugerenciasProf" class="mt-1 max-h-36 overflow-y-auto space-y-1 bg-slate-900 border border-slate-800 rounded-xl p-1 hidden"></div>
-                                <input type="hidden" id="selectedProfCC" required>
-                                <div id="profesorSeleccionadoNota" class="mt-1.5 text-[11px] text-blue-400 font-medium hidden"></div>
+                                <label class="block text-xs text-slate-400 mb-1">Profesor / Solicitante</label>
+                                <input type="text" id="presNombre" required placeholder="Nombre del docente" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
                             </div>
-
                             <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Equipo Disponible</label>
-                                <select id="selectEquipoPrestamo" required class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                                    <option value="">Seleccione equipo disponible...</option>
-                                    ${equiposDisponibles.map(e => `
-                                        <option value="${e.codigo}">${e.codigo} - ${e.tipo} (${e.modelo})</option>
-                                    `).join('')}
-                                </select>
+                                <label class="block text-xs text-slate-400 mb-1">Equipo (Ej. Laptop / Video-beam)</label>
+                                <input type="text" id="presEquipo" required placeholder="PC-01 o VB-01" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
                             </div>
-
-                            <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-check"></i>
-                                <span>Registrar Préstamo</span>
-                            </button>
+                            <button type="submit" class="w-full py-3 bg-blue-600 text-white font-medium text-xs rounded-xl">Guardar Préstamo</button>
                         </form>
-                    </div>
+                    </div>` : ''}
 
-                    <!-- Tabla de Préstamos Activos -->
-                    <div class="lg:col-span-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div>
-                            <h3 class="font-bold text-white text-sm">Préstamos Activos en Curso</h3>
-                            <p class="text-xs text-slate-400">Listado actual con opción de devolución rápida</p>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                        <th class="py-3 px-3">Docente</th>
-                                        <th class="py-3 px-3">Cédula (CC)</th>
-                                        <th class="py-3 px-3">Equipo</th>
-                                        <th class="py-3 px-3">Hora Salida</th>
-                                        <th class="py-3 px-3 text-right">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-800 text-xs">
-                                    ${state.prestamos.length === 0 ? `
-                                        <tr>
-                                            <td colspan="5" class="py-12 text-center text-slate-500">No hay préstamos activos registrados.</td>
-                                        </tr>
-                                    ` : state.prestamos.map(p => `
-                                        <tr class="hover:bg-slate-900/50">
-                                            <td class="py-3.5 px-3 font-medium text-slate-200">${p.nombre}</td>
-                                            <td class="py-3.5 px-3 font-mono text-slate-400">${p.cc}</td>
-                                            <td class="py-3.5 px-3 text-slate-300">${p.equipo}</td>
-                                            <td class="py-3.5 px-3 text-slate-400">${p.horaSalida}</td>
-                                            <td class="py-3.5 px-3 text-right">
-                                                <button onclick="devolverEquipo(${p.id}, '${p.codigoEquipo}', '${p.nombre}')" class="px-3 py-1.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-xl font-semibold transition-all">
-                                                    Recibir / Devolver
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function filtrarProfesoresDropdown(query) {
-            const container = document.getElementById('dropdownSugerenciasProf');
-            if (!query.trim()) {
-                container.classList.add('hidden');
-                return;
-            }
-            const q = query.toLowerCase();
-            const matches = state.profesores.filter(p => p.cc.includes(q) || p.nombre.toLowerCase().includes(q));
-
-            if (matches.length === 0) {
-                container.innerHTML = `<div class="p-2 text-xs text-slate-500 text-center">No se encontró profesor</div>`;
-            } else {
-                container.innerHTML = matches.map(p => `
-                    <div onclick="seleccionarProfesorPrestamo('${p.cc}', '${p.nombre}')" class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer text-xs">
-                        <div class="font-semibold text-slate-200">${p.nombre}</div>
-                        <div class="text-[10px] text-slate-400 font-mono">CC: ${p.cc}</div>
-                    </div>
-                `).join('');
-            }
-            container.classList.remove('hidden');
-        }
-
-        function seleccionarProfesorPrestamo(cc, nombre) {
-            document.getElementById('selectedProfCC').value = cc;
-            document.getElementById('busquedaProfesorInput').value = `${nombre} (CC: ${cc})`;
-            document.getElementById('dropdownSugerenciasProf').classList.add('hidden');
-            const nota = document.getElementById('profesorSeleccionadoNota');
-            nota.textContent = `✓ Docente seleccionado correctamente`;
-            nota.classList.remove('hidden');
-        }
-
-        function registrarPrestamo(e) {
-            e.preventDefault();
-            const cc = document.getElementById('selectedProfCC').value;
-            const codigoEquipo = document.getElementById('selectEquipoPrestamo').value;
-
-            if (!cc) {
-                showToast('Por favor seleccione un profesor válido de la lista', 'error');
-                return;
-            }
-
-            const profesor = state.profesores.find(p => p.cc === cc);
-            const equipo = state.equipos.find(eq => eq.codigo === codigoEquipo);
-
-            if (!profesor || !equipo) {
-                showToast('Datos inválidos para procesar el préstamo', 'error');
-                return;
-            }
-
-            equipo.estado = 'Prestado';
-
-            state.prestamos.unshift({
-                id: Date.now(),
-                cc: profesor.cc,
-                nombre: profesor.nombre,
-                equipo: `${equipo.codigo} - ${equipo.tipo} (${equipo.modelo})`,
-                codigoEquipo: equipo.codigo,
-                horaSalida: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                estado: 'Activo'
-            });
-
-            registrarLog('PRÉSTAMO', `${profesor.nombre} retiró ${equipo.tipo} (${equipo.codigo})`, 'blue');
-            saveState();
-            showToast('¡Préstamo registrado exitosamente!');
-            render();
-        }
-
-        function devolverEquipo(prestamoId, codigoEquipo, nombreProf) {
-            state.prestamos = state.prestamos.filter(p => p.id !== prestamoId);
-            const equipo = state.equipos.find(eq => eq.codigo === codigoEquipo);
-            if (equipo) {
-                equipo.estado = 'Disponible';
-            }
-            registrarLog('DEVOLUCIÓN', `Se recibió ${codigoEquipo} entregado por ${nombreProf}`, 'emerald');
-            saveState();
-            showToast('Equipo recibido y liberado en inventario');
-            render();
-        }
-
-        function renderEquiposView() {
-            return `
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div>
-                            <h3 class="font-bold text-white text-sm">Registrar Nuevo Equipo</h3>
-                            <p class="text-xs text-slate-400">Añada PCs o video-beams al inventario</p>
-                        </div>
-
-                        <form onsubmit="registrarEquipo(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Código / Inventario</label>
-                                <input type="text" id="nuevoEqCodigo" required placeholder="Ej. VB-03 o PC-03"
-                                    class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Tipo de Equipo</label>
-                                <select id="nuevoEqTipo" class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                                    <option value="Video-beam">Video-beam</option>
-                                    <option value="Laptop">Laptop / Computador</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Modelo y Marca</label>
-                                <input type="text" id="nuevoEqModelo" required placeholder="Ej. Epson PowerLite X49"
-                                    class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                            </div>
-
-                            <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-plus-circle"></i>
-                                <span>Guardar en Inventario</span>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="lg:col-span-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div>
-                            <h3 class="font-bold text-white text-sm">Inventario General Registrado</h3>
-                            <p class="text-xs text-slate-400">Listado sincronizado de dispositivos disponibles y prestados</p>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                        <th class="py-3 px-3">Código</th>
-                                        <th class="py-3 px-3">Tipo</th>
-                                        <th class="py-3 px-3">Modelo</th>
-                                        <th class="py-3 px-3">Estado</th>
-                                        <th class="py-3 px-3 text-right">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-800 text-xs">
-                                    ${state.equipos.map(e => {
-                                        const badge = e.estado === 'Disponible' 
-                                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-                                        return `
-                                            <tr class="hover:bg-slate-900/50">
-                                                <td class="py-3.5 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
-                                                <td class="py-3.5 px-3 text-slate-200">${e.tipo}</td>
-                                                <td class="py-3.5 px-3 text-slate-300">${e.modelo}</td>
-                                                <td class="py-3.5 px-3">
-                                                    <span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold border ${badge}">
-                                                        ${e.estado}
-                                                    </span>
-                                                </td>
-                                                <td class="py-3.5 px-3 text-right">
-                                                    <button onclick="eliminarEquipo('${e.codigo}', '${e.tipo}')" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Eliminar equipo">
-                                                        <i class="fa-solid fa-trash-can text-xs"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        `;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function registrarEquipo(e) {
-            e.preventDefault();
-            const codigo = document.getElementById('nuevoEqCodigo').value.trim().toUpperCase();
-            const tipo = document.getElementById('nuevoEqTipo').value;
-            const modelo = document.getElementById('nuevoEqModelo').value.trim();
-
-            if (state.equipos.some(eq => eq.codigo === codigo)) {
-                showToast('Ya existe un equipo registrado con ese código ID', 'error');
-                return;
-            }
-
-            state.equipos.push({ codigo, tipo, modelo, estado: 'Disponible' });
-            registrarLog('EQUIPO', `Se registró nuevo equipo ${tipo} (${codigo})`, 'indigo');
-            saveState();
-            showToast('¡Equipo agregado exitosamente al inventario!');
-            render();
-        }
-
-        function eliminarEquipo(codigo, tipo) {
-            state.equipos = state.equipos.filter(e => e.codigo !== codigo);
-            state.prestamos = state.prestamos.filter(p => p.codigoEquipo !== codigo);
-            registrarLog('EQUIPO', `Se eliminó equipo ${tipo} (${codigo})`, 'rose');
-            saveState();
-            showToast('Equipo eliminado del sistema', 'info');
-            render();
-        }
-
-        function renderProfesoresView() {
-            const searchQuery = window.profSearchFilter || '';
-            const filtrados = state.profesores.filter(p => p.cc.includes(searchQuery) || p.nombre.toLowerCase().includes(searchQuery.toLowerCase()));
-
-            return `
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div>
-                            <h3 class="font-bold text-white text-sm">Registrar Nuevo Profesor</h3>
-                            <p class="text-xs text-slate-400">Añada docentes a la base de datos institucional</p>
-                        </div>
-
-                        <form onsubmit="registrarProfesor(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Número de Cédula (CC)</label>
-                                <input type="text" id="nuevoProfCC" required placeholder="Ej. 1098765432"
-                                    class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Nombre Completo</label>
-                                <input type="text" id="nuevoProfNombre" required placeholder="Ej. Dra. María Fernanda"
-                                    class="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                            </div>
-
-                            <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center space-x-2">
-                                <i class="fa-solid fa-user-plus"></i>
-                                <span>Guardar Profesor</span>
-                            </button>
-                        </form>
-                    </div>
-
-                    <div class="lg:col-span-2 bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                                <h3 class="font-bold text-white text-sm">Directorio de Docentes</h3>
-                                <p class="text-xs text-slate-400">Búsqueda rápida por cédula o nombre</p>
-                            </div>
-                            <div class="relative w-full sm:w-60">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                                    <i class="fa-solid fa-search text-xs"></i>
-                                </span>
-                                <input type="text" placeholder="Filtrar docente..." value="${searchQuery}" oninput="window.profSearchFilter=this.value; render();"
-                                    class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500">
-                            </div>
-                        </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                        <th class="py-3 px-3">Cédula (CC)</th>
-                                        <th class="py-3 px-3">Nombre Completo</th>
-                                        <th class="py-3 px-3 text-right">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-800 text-xs">
-                                    ${filtrados.length === 0 ? `
-                                        <tr>
-                                            <td colspan="3" class="py-12 text-center text-slate-500">No se encontraron profesores registrados.</td>
-                                        </tr>
-                                    ` : filtrados.map(p => `
-                                        <tr class="hover:bg-slate-900/50">
-                                            <td class="py-3.5 px-3 font-mono text-emerald-400 font-medium">${p.cc}</td>
-                                            <td class="py-3.5 px-3 font-medium text-slate-200">${p.nombre}</td>
-                                            <td class="py-3.5 px-3 text-right">
-                                                <button onclick="eliminarProfesor('${p.cc}', '${p.nombre}')" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors" title="Eliminar profesor">
-                                                    <i class="fa-solid fa-trash-can text-xs"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function registrarProfesor(e) {
-            e.preventDefault();
-            const cc = document.getElementById('nuevoProfCC').value.trim();
-            const nombre = document.getElementById('nuevoProfNombre').value.trim();
-
-            if (state.profesores.some(p => p.cc === cc)) {
-                showToast('Ya existe un profesor registrado con esa cédula (CC)', 'error');
-                return;
-            }
-
-            state.profesores.push({ cc, nombre });
-            registrarLog('PROFESOR', `Se registró nuevo profesor ${nombre} (CC: ${cc})`, 'emerald');
-            saveState();
-            showToast('¡Profesor agregado exitosamente al directorio!');
-            render();
-        }
-
-        function eliminarProfesor(cc, nombre) {
-            state.profesores = state.profesores.filter(p => p.cc !== cc);
-            registrarLog('PROFESOR', `Se eliminó profesor ${nombre}`, 'rose');
-            saveState();
-            showToast('Profesor eliminado del registro', 'info');
-            render();
-        }
-
-        function renderHistorialView() {
-            return `
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="font-bold text-white text-sm">Auditoría y Registro General</h3>
-                            <p class="text-xs text-slate-400">Historial completo en tiempo real de préstamos, devoluciones, equipos y profesores</p>
-                        </div>
-                        <button onclick="state.historialLogs=[]; saveState(); render();" class="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 hover:text-rose-400 text-xs rounded-xl transition-all">
-                            Limpiar Historial
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
+                    <div class="${esAdmin ? 'lg:col-span-2' : 'lg:col-span-3'} bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Préstamos Sincronizados en Tiempo Real</h3>
+                        <table class="w-full text-left text-xs">
                             <thead>
-                                <tr class="border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                    <th class="py-3 px-3">Fecha / Hora</th>
-                                    <th class="py-3 px-3">Tipo de Evento</th>
-                                    <th class="py-3 px-3">Descripción de la Acción</th>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-3">Solicitante</th>
+                                    <th class="py-3 px-3">Equipo</th>
+                                    <th class="py-3 px-3">Hora</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-800 text-xs">
-                                ${state.historialLogs.length === 0 ? `
-                                    <tr>
-                                        <td colspan="3" class="py-12 text-center text-slate-500">No hay registros en el historial.</td>
-                                    </tr>
-                                ` : state.historialLogs.map(log => {
-                                    const badge = 
-                                        log.tipo === 'PRÉSTAMO' ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' :
-                                        log.tipo === 'DEVOLUCIÓN' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' :
-                                        log.tipo === 'EQUIPO' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' :
-                                        'bg-purple-500/10 text-purple-400 border-purple-500/30';
-                                    return `
-                                        <tr class="hover:bg-slate-900/50">
-                                            <td class="py-3.5 px-3 font-mono text-slate-400">${log.fecha}</td>
-                                            <td class="py-3.5 px-3">
-                                                <span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-semibold border ${badge}">
-                                                    ${log.tipo}
-                                                </span>
-                                            </td>
-                                            <td class="py-3.5 px-3 text-slate-200 font-medium">${log.descripcion}</td>
-                                        </tr>
-                                    `;
-                                }).join('')}
+                            <tbody class="divide-y divide-slate-800">
+                                ${state.prestamos.length === 0 ? '<tr><td colspan="3" class="py-6 text-center text-slate-500">No hay préstamos activos.</td></tr>' : 
+                                  state.prestamos.map(p => `<tr><td class="py-3 px-3">${p.nombre}</td><td class="py-3 px-3">${p.equipo}</td><td class="py-3 px-3 text-slate-400">${p.hora}</td></tr>`).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -883,747 +409,81 @@
             `;
         }
 
-        // ================= TÉRMINOS Y CONDICIONES =================
-        function hideLoginError() {
-            const e = document.getElementById('loginError');
-            if (e) e.classList.add('hidden');
-        }
-
-        function onTermsChange(checked) {
-            termsAccepted = checked;
-            const err = document.getElementById('termsError');
-            if (err && checked) err.classList.add('hidden');
-        }
-
-        function openTerms(e) {
-            if (e) e.preventDefault();
-            closeTerms();
-            const modal = document.createElement('div');
-            modal.id = 'termsModal';
-            modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm';
-            modal.innerHTML = `
-                <div class="w-full max-w-2xl max-h-[90vh] flex flex-col bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl fade-in">
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-                        <h2 class="text-base font-bold text-white flex items-center space-x-2">
-                            <i class="fa-solid fa-file-contract text-blue-400"></i>
-                            <span>Términos y Condiciones de Uso</span>
-                        </h2>
-                        <button onclick="closeTerms()" title="Cerrar" class="p-2 text-slate-400 hover:text-white rounded-lg transition-colors">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                    <div class="px-6 py-5 overflow-y-auto text-xs text-slate-300 leading-relaxed space-y-4">
-                        <p class="text-slate-400">Última actualización: octubre de 2026. Al acceder y utilizar el sistema de Bedelía Universitaria, usted acepta los siguientes términos.</p>
-
-                        <div><h3 class="font-semibold text-white mb-1">1. Objeto del sistema</h3>
-                        <p>Este sistema permite gestionar el registro, préstamo y devolución de equipos (video-beams, laptops y similares), así como el registro de profesores y el historial de movimientos de la Bedelía.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">2. Acceso y uso autorizado</h3>
-                        <p>El acceso está reservado al personal autorizado de la institución. El usuario se compromete a usar el sistema únicamente para fines administrativos y académicos propios de sus funciones.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">3. Credenciales de acceso</h3>
-                        <p>Las credenciales son personales e intransferibles. El usuario es responsable de custodiarlas y de toda actividad realizada con su sesión. Debe cerrar sesión al terminar de usar el sistema.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">4. Préstamo y responsabilidad sobre los equipos</h3>
-                        <p>Todo equipo prestado debe devolverse en las condiciones en que fue entregado. El profesor que retira un equipo es responsable de su cuidado, y de su pérdida o daño, según los reglamentos de la institución.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">5. Veracidad de la información</h3>
-                        <p>El usuario se compromete a registrar datos veraces y actualizados (equipos, profesores, préstamos y devoluciones). Está prohibido alterar, eliminar o falsear registros con fines indebidos.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">6. Protección de datos personales</h3>
-                        <p>El sistema trata datos personales como nombres y números de cédula de los profesores. Estos datos se usan exclusivamente para la gestión de préstamos y no deben ser divulgados ni usados con otros fines, conforme a la normativa de protección de datos aplicable.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">7. Conductas prohibidas</h3>
-                        <p>Se prohíbe intentar acceder sin autorización, interferir con el funcionamiento del sistema, o usarlo para actividades ilícitas o ajenas a su finalidad.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">8. Disponibilidad y limitación de responsabilidad</h3>
-                        <p>Se procura el funcionamiento continuo del sistema, pero no se garantiza que esté libre de interrupciones o errores. La institución no será responsable por pérdidas derivadas de un uso indebido o de fallas técnicas ajenas a su control.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">9. Modificaciones</h3>
-                        <p>La institución puede modificar estos términos en cualquier momento. El uso continuado del sistema implica la aceptación de la versión vigente.</p></div>
-
-                        <div><h3 class="font-semibold text-white mb-1">10. Aceptación</h3>
-                        <p>Al marcar la casilla de aceptación, el usuario declara haber leído, comprendido y aceptado estos Términos y Condiciones. Sin esta aceptación no es posible iniciar sesión.</p></div>
-                    </div>
-                    <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4 border-t border-slate-800">
-                        <button onclick="closeTerms()" class="px-4 py-2.5 bg-slate-950 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium rounded-xl transition-all">Cerrar</button>
-                        <button onclick="acceptTermsFromModal()" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all">Aceptar Términos y Condiciones</button>
-                    </div>
+        function renderEquiposView() {
+            const esAdmin = state.currentUser.role === 'Administrador';
+            return `
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 class="font-bold text-white text-sm">Inventario de Equipos (PCs y Video-beams)</h3>
+                    ${esAdmin ? `
+                    <form onsubmit="registrarEquipo(event)" class="flex gap-2 pb-4">
+                        <input type="text" id="eqCod" placeholder="Código (ej. PC-02)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                        <input type="text" id="eqMod" placeholder="Modelo / Tipo" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-xs rounded-xl font-medium">Añadir Equipo</button>
+                    </form>` : ''}
+                    <table class="w-full text-left text-xs">
+                        <thead><tr class="border-b border-slate-800 text-slate-400"><th class="py-3 px-3">Código</th><th class="py-3 px-3">Modelo</th><th class="py-3 px-3">Estado</th></tr></thead>
+                        <tbody class="divide-y divide-slate-800">
+                            ${state.equipos.map(e => `<tr><td class="py-3 px-3 font-mono text-blue-400">${e.codigo}</td><td class="py-3 px-3">${e.modelo}</td><td class="py-3 px-3"><span class="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded">${e.estado}</span></td></tr>`).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
-            modal.addEventListener('click', function(ev) { if (ev.target === modal) closeTerms(); });
-            document.body.appendChild(modal);
         }
 
-        function closeTerms() {
-            const m = document.getElementById('termsModal');
-            if (m) m.remove();
+        function renderProfesoresView() {
+            return `
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 class="font-bold text-white text-sm">Directorio de Profesores</h3>
+                    <table class="w-full text-left text-xs">
+                        <thead><tr class="border-b border-slate-800 text-slate-400"><th class="py-3 px-3">CC</th><th class="py-3 px-3">Nombre</th></tr></thead>
+                        <tbody class="divide-y divide-slate-800">
+                            ${state.profesores.map(p => `<tr><td class="py-3 px-3 font-mono text-emerald-400">${p.cc}</td><td class="py-3 px-3">${p.nombre}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         }
 
-        function acceptTermsFromModal() {
-            termsAccepted = true;
-            const cb = document.getElementById('acceptTerms');
-            if (cb) cb.checked = true;
-            const err = document.getElementById('termsError');
-            if (err) err.classList.add('hidden');
-            closeTerms();
+        function renderHistorialView() {
+            return `
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Inicios de sesión y registros con Fecha y Hora)</h3>
+                    <table class="w-full text-left text-xs">
+                        <thead><tr class="border-b border-slate-800 text-slate-400"><th class="py-3 px-3">Fecha y Hora</th><th class="py-3 px-3">Tipo</th><th class="py-3 px-3">Acción Realizada</th></tr></thead>
+                        <tbody class="divide-y divide-slate-800">
+                            ${state.historialLogs.map(l => `<tr><td class="py-3 px-3 font-mono text-slate-400">${l.fecha}</td><td class="py-3 px-3"><span class="px-2 py-1 bg-blue-500/10 text-blue-400 rounded text-[10px]">${l.tipo}</span></td><td class="py-3 px-3 text-slate-200">${l.descripcion}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
         }
 
-        // ================= MODO INVITADO (SOLO LECTURA) =================
-        function isGuest() {
-            return !!(state.currentUser && state.currentUser.guest);
-        }
+        function registrarPrestamo(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('presNombre').value.trim();
+            const equipo = document.getElementById('presEquipo').value.trim();
+            const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        function handleGuestLogin() {
-            if (!termsAccepted) {
-                const err = document.getElementById('termsError');
-                if (err) err.classList.remove('hidden');
-                return;
-            }
-            state.currentUser = { name: 'Invitado', role: 'Invitado (solo lectura)', guest: true };
-            state.activeTab = 'dashboard';
+            state.prestamos.unshift({ nombre, equipo, hora });
+            registrarLog('PRÉSTAMO', `Se registró préstamo de ${equipo} para ${nombre}`, 'blue');
             saveState();
-            showToast('Ingresaste como invitado: solo lectura', 'info');
+            showToast('¡Préstamo registrado exitosamente!');
             render();
         }
 
-        // Bloquea cualquier acción que modifique datos cuando es invitado
-        ['registrarPrestamo', 'devolverEquipo', 'registrarEquipo', 'eliminarEquipo', 'registrarProfesor', 'eliminarProfesor'].forEach(function(name) {
-            const original = window[name];
-            window[name] = function() {
-                if (isGuest()) {
-                    if (arguments[0] && arguments[0].preventDefault) arguments[0].preventDefault();
-                    showToast('Modo invitado: solo puedes consultar la información', 'info');
-                    return;
-                }
-                return original.apply(this, arguments);
-            };
-        });
+        function registrarEquipo(e) {
+            e.preventDefault();
+            const codigo = document.getElementById('eqCod').value.trim().toUpperCase();
+            const modelo = document.getElementById('eqMod').value.trim();
 
-        // Después de dibujar la página, si es invitado se ocultan formularios y botones de edición
-        const renderOriginal = window.render;
-        window.render = function() {
-            renderOriginal();
-            if (!isGuest()) return;
-            const app = document.getElementById('app');
-
-            // Quitar tarjetas con formularios (registrar préstamo / equipo / profesor)
-            app.querySelectorAll('form').forEach(function(f) {
-                const card = f.closest('.bg-slate-950\\/80');
-                if (card) card.remove();
-            });
-
-            // Quitar columnas con botones de acción (devolver / eliminar)
-            const acciones = '[onclick^="devolverEquipo"], [onclick^="eliminarEquipo"], [onclick^="eliminarProfesor"]';
-            app.querySelectorAll('table').forEach(function(table) {
-                const botones = table.querySelectorAll(acciones);
-                if (!botones.length) return;
-                const idx = botones[0].closest('td').cellIndex;
-                table.querySelectorAll('tr').forEach(function(tr) {
-                    if (tr.cells.length > idx && tr.cells.length > 1) tr.deleteCell(idx);
-                });
-            });
-            app.querySelectorAll(acciones).forEach(function(b) { b.remove(); });
-
-            // Quitar "Limpiar Historial"
-            app.querySelectorAll('button').forEach(function(b) {
-                if ((b.getAttribute('onclick') || '').indexOf('historialLogs=[]') !== -1) b.remove();
-            });
-
-            // Que las tablas ocupen todo el ancho al no existir el formulario
-            app.querySelectorAll('.lg\\:col-span-2').forEach(function(el) {
-                el.classList.remove('lg:col-span-2');
-                el.classList.add('lg:col-span-3');
-            });
-
-            // Aviso de solo lectura
-            const cont = app.querySelector('.max-w-7xl');
-            if (cont) {
-                cont.insertAdjacentHTML('afterbegin', `
-                    <div class="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl flex items-center space-x-2">
-                        <i class="fa-solid fa-eye"></i>
-                        <span>Estás navegando como <strong>invitado</strong>: puedes consultar toda la información, pero no registrar, editar ni eliminar datos.</span>
-                    </div>
-                `);
-            }
-        };
-
-        // ================= DESCARGAR AUDITORÍA EN PDF =================
-        // Genera el PDF directamente en el navegador (no requiere librerías externas ni internet).
-        function descargarHistorialPDF() {
-            const logs = state.historialLogs || [];
-            if (!logs.length) {
-                showToast('No hay registros en el historial para descargar', 'info');
-                return;
-            }
-
-            const PW = 595.28, PH = 841.89, M = 40;          // A4 vertical, márgenes en puntos
-            const COLS = [105, 85, PW - 2 * M - 190];        // Fecha | Tipo | Descripción
-            const FS = 9, LH = 12, PADX = 6, PADY = 6, FOOT = 34;
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext ? canvas.getContext('2d') : null;
-
-            function tw(s, size, bold) {
-                if (ctx) {
-                    ctx.font = (bold ? 'bold ' : '') + size + 'px Arial, Helvetica, sans-serif';
-                    return ctx.measureText(s).width;
-                }
-                return s.length * size * 0.5;
-            }
-
-            // Convierte texto a Latin-1 / WinAnsi (tildes y ñ) y escapa los caracteres especiales del PDF
-            const WIN = { '\u2013': '\x96', '\u2014': '\x97', '\u2018': '\x91', '\u2019': '\x92', '\u201C': '\x93', '\u201D': '\x94', '\u2022': '\x95', '\u20AC': '\x80' };
-            function enc(s) {
-                s = String(s == null ? '' : s).normalize('NFC');
-                let o = '';
-                for (const ch of s) {
-                    if (WIN[ch]) { o += WIN[ch]; continue; }
-                    const c = ch.charCodeAt(0);
-                    if (/\s/.test(ch)) o += ' ';
-                    else if (c < 32 || (c >= 127 && c < 160)) continue;
-                    else if (c < 256) o += ch;
-                    else o += '?';
-                }
-                return o.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
-            }
-
-            function wrap(s, maxW, size, bold) {
-                const lines = [];
-                String(s == null ? '' : s).split(/\n/).forEach(function(par) {
-                    let line = '';
-                    par.split(/\s+/).forEach(function(word) {
-                        if (!word) return;
-                        let test = line ? line + ' ' + word : word;
-                        if (tw(test, size, bold) <= maxW) { line = test; return; }
-                        if (line) { lines.push(line); line = ''; }
-                        // palabra más larga que la columna: se corta por caracteres
-                        while (tw(word, size, bold) > maxW && word.length > 1) {
-                            let n = word.length - 1;
-                            while (n > 1 && tw(word.slice(0, n), size, bold) > maxW) n--;
-                            lines.push(word.slice(0, n));
-                            word = word.slice(n);
-                        }
-                        line = word;
-                    });
-                    lines.push(line);
-                });
-                return lines;
-            }
-
-            const pages = [];
-            let cur = '', y = 0;
-            const f2 = function(n) { return n.toFixed(2); };
-            function text(x, yy, s, size, bold, rgb) {
-                cur += rgb + ' rg BT /' + (bold ? 'F2' : 'F1') + ' ' + size + ' Tf ' + f2(x) + ' ' + f2(yy) + ' Td (' + enc(s) + ') Tj ET\n';
-            }
-            function rect(x, yy, w, h, rgb) { cur += rgb + ' rg ' + f2(x) + ' ' + f2(yy) + ' ' + f2(w) + ' ' + f2(h) + ' re f\n'; }
-            function hline(yy, rgb) { cur += '0.5 w ' + rgb + ' RG ' + f2(M) + ' ' + f2(yy) + ' m ' + f2(PW - M) + ' ' + f2(yy) + ' l S\n'; }
-
-            const DARK = '0.12 0.16 0.23', TXT = '0.13 0.16 0.22', GRAY = '0.42 0.45 0.5';
-            const TIPO_COLOR = { 'PRÉSTAMO': '0.15 0.39 0.92', 'DEVOLUCIÓN': '0.02 0.55 0.38', 'EQUIPO': '0.31 0.27 0.90' };
-
-            function tableHeader() {
-                const h = 22;
-                rect(M, y - h, PW - 2 * M, h, DARK);
-                const titulos = ['FECHA / HORA', 'TIPO DE EVENTO', 'DESCRIPCIÓN DE LA ACCIÓN'];
-                let x = M;
-                titulos.forEach(function(tt, i) { text(x + PADX, y - 14.5, tt, 8, true, '1 1 1'); x += COLS[i]; });
-                y -= h;
-            }
-
-            function newPage(first) {
-                if (cur) pages.push(cur);
-                cur = '';
-                if (first) {
-                    y = PH - M;
-                    text(M, y - 14, 'BEDELÍA UNIVERSITARIA', 9, true, GRAY);
-                    text(M, y - 38, 'Auditoría y Registro General', 20, true, TXT);
-                    text(M, y - 54, 'Constancia del historial de movimientos del sistema', 10, false, GRAY);
-                    y -= 70;
-                    const now = new Date();
-                    const p2 = function(n) { return String(n).padStart(2, '0'); };
-                    const fechaGen = p2(now.getDate()) + '/' + p2(now.getMonth() + 1) + '/' + now.getFullYear() + ' ' + p2(now.getHours()) + ':' + p2(now.getMinutes()) + ':' + p2(now.getSeconds());
-                    const u = state.currentUser || {};
-                    const quien = (u.name || 'Usuario') + (u.role ? ' (' + u.role + ')' : '');
-                    rect(M, y - 58, PW - 2 * M, 58, '0.95 0.96 0.98');
-                    text(M + 12, y - 18, 'Fecha y hora de generación:', 9, true, TXT);
-                    text(M + 150, y - 18, fechaGen, 9, false, TXT);
-                    text(M + 12, y - 34, 'Generado por:', 9, true, TXT);
-                    text(M + 150, y - 34, quien, 9, false, TXT);
-                    text(M + 12, y - 50, 'Total de registros:', 9, true, TXT);
-                    text(M + 150, y - 50, String(logs.length), 9, false, TXT);
-                    y -= 78;
-                } else {
-                    y = PH - M;
-                    text(M, y - 10, 'Bedelía Universitaria - Auditoría y Registro General', 8, false, GRAY);
-                    hline(y - 16, '0.8 0.82 0.86');
-                    y -= 28;
-                }
-                tableHeader();
-            }
-
-            newPage(true);
-            logs.forEach(function(log, idx) {
-                const c0 = wrap(log.fecha, COLS[0] - 2 * PADX, FS, false);
-                const c1 = wrap(log.tipo, COLS[1] - 2 * PADX, FS, true);
-                const c2 = wrap(log.descripcion, COLS[2] - 2 * PADX, FS, false);
-                const nLines = Math.max(c0.length, c1.length, c2.length);
-                const h = nLines * LH + 2 * PADY - 3;
-                if (y - h < M + FOOT) newPage(false);
-                if (idx % 2 === 1) rect(M, y - h, PW - 2 * M, h, '0.97 0.975 0.985');
-                const tipoRgb = TIPO_COLOR[log.tipo] || '0.58 0.20 0.92';
-                c0.forEach(function(l, i) { text(M + PADX, y - PADY - FS - i * LH + 2, l, FS, false, GRAY); });
-                c1.forEach(function(l, i) { text(M + COLS[0] + PADX, y - PADY - FS - i * LH + 2, l, FS, true, tipoRgb); });
-                c2.forEach(function(l, i) { text(M + COLS[0] + COLS[1] + PADX, y - PADY - FS - i * LH + 2, l, FS, false, TXT); });
-                y -= h;
-                hline(y, '0.88 0.9 0.93');
-            });
-            pages.push(cur);
-
-            // Pie de página con numeración
-            const total = pages.length;
-            for (let i = 0; i < total; i++) {
-                cur = '';
-                hline(M + 14, '0.8 0.82 0.86');
-                text(M, M, 'Documento generado por el sistema de Bedelía Universitaria', 8, false, GRAY);
-                const lbl = 'Página ' + (i + 1) + ' de ' + total;
-                text(PW - M - tw(lbl, 8, false), M, lbl, 8, false, GRAY);
-                pages[i] += cur;
-            }
-
-            // Armado del archivo PDF
-            const objs = [];
-            objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
-            objs[2] = '<< /Type /Pages /Kids [' + pages.map(function(_, i) { return (6 + 2 * i) + ' 0 R'; }).join(' ') + '] /Count ' + total + ' >>';
-            objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
-            objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
-            const d = new Date(), p2 = function(n) { return String(n).padStart(2, '0'); };
-            const pdfDate = 'D:' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
-            objs[5] = '<< /Title (' + enc('Auditoría y Registro General - Bedelía Universitaria') + ') /Creator (Bedelia Universitaria) /CreationDate (' + pdfDate + ') >>';
-            pages.forEach(function(c, i) {
-                objs[6 + 2 * i] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + (7 + 2 * i) + ' 0 R >>';
-                objs[7 + 2 * i] = '<< /Length ' + c.length + ' >>\nstream\n' + c + 'endstream';
-            });
-            let out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';
-            const offsets = [];
-            for (let i = 1; i < objs.length; i++) {
-                offsets[i] = out.length;
-                out += i + ' 0 obj\n' + objs[i] + '\nendobj\n';
-            }
-            const xrefPos = out.length;
-            out += 'xref\n0 ' + objs.length + '\n0000000000 65535 f \n';
-            for (let i = 1; i < objs.length; i++) out += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
-            out += 'trailer\n<< /Size ' + objs.length + ' /Root 1 0 R /Info 5 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF';
-
-            const bytes = new Uint8Array(out.length);
-            for (let i = 0; i < out.length; i++) bytes[i] = out.charCodeAt(i) & 255;
-            const blob = new Blob([bytes], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'Auditoria_Registro_General_' + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + '_' + p2(d.getHours()) + p2(d.getMinutes()) + '.pdf';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
-            showToast('PDF descargado correctamente', 'success');
-        }
-
-        // Inserta el botón "Descargar PDF" en la vista de Auditoría (también visible para el invitado)
-        const renderConInvitado = window.render;
-        window.render = function() {
-            renderConInvitado();
-            if (state.activeTab !== 'historial' || !state.currentUser) return;
-            const app = document.getElementById('app');
-            const h3 = Array.from(app.querySelectorAll('h3')).find(function(h) {
-                return h.textContent.indexOf('Auditoría y Registro General') !== -1;
-            });
-            if (!h3) return;
-            const header = h3.closest('.justify-between');
-            if (!header || header.querySelector('#btnDescargarPDF')) return;
-            const grupo = document.createElement('div');
-            grupo.className = 'flex items-center gap-2';
-            const btn = document.createElement('button');
-            btn.id = 'btnDescargarPDF';
-            btn.type = 'button';
-            btn.onclick = descargarHistorialPDF;
-            btn.className = 'px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2';
-            btn.innerHTML = '<i class="fa-solid fa-file-pdf"></i><span>Descargar PDF</span>';
-            const limpiar = header.querySelector('button');
-            grupo.appendChild(btn);
-            if (limpiar) grupo.appendChild(limpiar);
-            header.appendChild(grupo);
-        };
-
-        // ================= ROLES: ADMINISTRADOR / USUARIO / INVITADO =================
-        // Administrador: acceso total. Usuario: puede registrar y consultar, pero no eliminar ni limpiar el historial.
-        // Invitado: solo lectura.
-        const CUENTA_USUARIO = {
-            email: 'usuario.bedelia@universidad.edu',
-            pass: '123456',
-            datos: { name: 'Usuario Bedelía', role: 'Usuario', rol: 'usuario' }
-        };
-
-        function isUsuario() {
-            return !!(state.currentUser && state.currentUser.rol === 'usuario');
-        }
-
-        ['eliminarEquipo', 'eliminarProfesor'].forEach(function(name) {
-            const original = window[name];
-            window[name] = function() {
-                if (isUsuario()) {
-                    showToast('Solo el administrador puede eliminar registros', 'info');
-                    return;
-                }
-                return original.apply(this, arguments);
-            };
-        });
-
-        // Constancia de inicio de sesión: queda en el historial y en la base de datos (bedelia/accesos)
-        function registrarAcceso(correo) {
-            const u = state.currentUser || {};
-            const now = new Date();
-            const p2 = function(n) { return String(n).padStart(2, '0'); };
-            let h = now.getHours(); const ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
-            const fecha = p2(now.getDate()) + '/' + p2(now.getMonth() + 1) + '/' + now.getFullYear() + ' ' + p2(h) + ':' + p2(now.getMinutes()) + ' ' + ampm;
-            const rolTxt = u.guest ? 'Invitado, solo lectura' : (u.rol === 'usuario' ? 'Usuario' : 'Administrador');
-            const desc = 'Inicio de sesión: ' + (u.guest ? 'Invitado' : u.name) + ' (' + rolTxt + ')';
-            state.historialLogs.unshift({ id: Date.now(), fecha: fecha, tipo: 'SESIÓN', descripcion: desc, color: 'emerald' });
+            state.equipos.push({ codigo, modelo, estado: 'Disponible' });
+            registrarLog('EQUIPO', `Se añadió nuevo equipo al inventario: ${codigo} (${modelo})`, 'indigo');
             saveState();
-            nubeRegistrarAcceso({
-                usuario: u.guest ? 'Invitado' : u.name,
-                correo: correo || (u.guest ? 'invitado' : ''),
-                rol: rolTxt,
-                fechaLocal: now.toISOString(),
-                dispositivo: (navigator.userAgent || '').slice(0, 140)
-            });
+            showToast('¡Equipo agregado con éxito!');
             render();
         }
 
-        const handleLoginBase = window.handleLogin;
-        window.handleLogin = function(e) {
-            const campoU = document.getElementById('loginUser'), campoP = document.getElementById('loginPass');
-            const email = campoU ? (campoU.value || '').trim().toLowerCase() : '';
-            const pass = campoP ? (campoP.value || '') : '';
-            if (email === CUENTA_USUARIO.email && pass === CUENTA_USUARIO.pass) {
-                if (e && e.preventDefault) e.preventDefault();
-                if (!termsAccepted) {
-                    const err = document.getElementById('termsError');
-                    if (err) err.classList.remove('hidden');
-                    return;
-                }
-                state.currentUser = Object.assign({}, CUENTA_USUARIO.datos);
-                saveState();
-                showToast('¡Sesión iniciada correctamente!');
-                render();
-                registrarAcceso(email);
-                return;
-            }
-            const antes = state.currentUser;
-            handleLoginBase.apply(this, arguments);
-            if (!antes && state.currentUser && !state.currentUser.guest) registrarAcceso(email);
-        };
-
-        const handleGuestBase = window.handleGuestLogin;
-        window.handleGuestLogin = function() {
-            const antes = state.currentUser;
-            handleGuestBase.apply(this, arguments);
-            if (!antes && state.currentUser && state.currentUser.guest) registrarAcceso('invitado');
-        };
-
-        // El usuario no ve los botones de eliminar ni "Limpiar Historial"
-        const renderConPDF = window.render;
-        window.render = function() {
-            renderConPDF();
-            if (!isUsuario()) return;
-            const app = document.getElementById('app');
-            const sel = '[onclick^="eliminarEquipo"], [onclick^="eliminarProfesor"]';
-            app.querySelectorAll('table').forEach(function(table) {
-                const botones = table.querySelectorAll(sel);
-                if (!botones.length) return;
-                const idx = botones[0].closest('td').cellIndex;
-                table.querySelectorAll('tr').forEach(function(tr) {
-                    if (tr.cells.length > idx && tr.cells.length > 1) tr.deleteCell(idx);
-                });
-            });
-            app.querySelectorAll(sel).forEach(function(b) { b.remove(); });
-            app.querySelectorAll('button').forEach(function(b) {
-                if ((b.getAttribute('onclick') || '').indexOf('historialLogs=[]') !== -1) b.remove();
-            });
-        };
-
-        // ================= BASE DE DATOS EN LA NUBE (Firebase Realtime Database) =================
-        // Todos los dispositivos (administrador, usuarios, profesor) leen y escriben en la misma base,
-        // y los cambios aparecen en los demás al instante.
-        const BEDELIA_DB_URL = 'https://bedelia-universitaria-default-rtdb.firebaseio.com';
-        const DB_ROOT = BEDELIA_DB_URL.replace(/\/+$/, '') + '/bedelia';
-        const NUBE_COLS = ['equipos', 'profesores', 'prestamos', 'historialLogs'];
-        const NUBE_NUEVOS_PRIMERO = { equipos: false, profesores: false, prestamos: true, historialLogs: true };
-        const NUBE_ID = { equipos: 'codigo', profesores: 'cc', prestamos: 'id', historialLogs: 'id' };
-        const ACC_PEND_KEY = 'bedelia_accesos_pendientes';
-
-        let nubeShadow = {};            // última copia conocida de la nube (para enviar solo lo que cambió)
-        let nubeSemilla = null;         // orden inicial al sembrar una base vacía
-        let nubeInicializada = false, nubeSincronizando = false, nubeOtraVez = false, nubeRenderPendiente = false;
-        let nubeTimer = null, nubePullTimer = null, nubeReintento = null, nubeES = null;
-        const saveStateLocal = window.saveState;
-
-        function nubeKey(c, item) {
-            const k = String(item[NUBE_ID[c]]).replace(/[.$#\[\]\/\u0000-\u001f\u007f]/g, '_');
-            return k || '_';
-        }
-        function nubeNorm(item) {
-            const o = {};
-            Object.keys(item).sort().forEach(function(k) {
-                if (k === '_t' || item[k] === undefined || item[k] === null) return;
-                o[k] = item[k];
-            });
-            return JSON.stringify(o);
-        }
-        // Firebase puede devolver una lista como arreglo (ids 1,2,3...) o como objeto: se aceptan ambos
-        function nubeLista(v) {
-            if (!v) return [];
-            const arr = Array.isArray(v) ? v : Object.keys(v).map(function(k) { return v[k]; });
-            return arr.filter(function(x) { return x && typeof x === 'object'; });
-        }
-
-        function nubeBadge() {
-            let b = document.getElementById('nubeBadge');
-            if (!b && document.body) {
-                b = document.createElement('div');
-                b.id = 'nubeBadge';
-                b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:10px;z-index:40;padding:5px 12px;border-radius:9999px;font-size:11px;background:rgba(15,23,42,.93);border:1px solid #1e293b;color:#cbd5e1;display:flex;align-items:center;gap:6px;pointer-events:none;white-space:nowrap';
-                document.body.appendChild(b);
-            }
-            return b;
-        }
-        function nubeEstado(e) {
-            const b = nubeBadge();
-            if (!b) return;
-            const m = {
-                ok: ['#10b981', 'Sincronizado en la nube'],
-                sync: ['#3b82f6', 'Sincronizando…'],
-                off: ['#f59e0b', 'Sin conexión: se enviará al reconectar'],
-                denied: ['#ef4444', 'Sin permiso en la base de datos']
-            }[e];
-            b.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:' + m[0] + '"></span><span>' + m[1] + '</span>';
-        }
-
-        async function nubeGet() {
-            const r = await fetch(DB_ROOT + '.json', { cache: 'no-store' });
-            if (r.status === 401 || r.status === 403) { const e = new Error('denied'); e.denied = true; throw e; }
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-        }
-
-        // Compara los datos locales con la última copia de la nube y lista lo que hay que enviar
-        function nubeOps() {
-            const ops = [];
-            NUBE_COLS.forEach(function(c) {
-                const lista = state[c] || [], sh = nubeShadow[c] || {}, vistos = {};
-                lista.forEach(function(item) {
-                    const k = nubeKey(c, item);
-                    if (vistos[k]) return;
-                    vistos[k] = 1;
-                    const n = nubeNorm(item);
-                    if (sh[k] !== n) ops.push({ type: sh[k] === undefined ? 'put' : 'patch', coll: c, key: k, item: item, n: n });
-                });
-                const borrados = Object.keys(sh).filter(function(k) { return !vistos[k]; });
-                if (borrados.length) {
-                    if (lista.length === 0 && borrados.length >= 5) ops.push({ type: 'delcoll', coll: c });
-                    else borrados.forEach(function(k) { ops.push({ type: 'del', coll: c, key: k }); });
-                }
-            });
-            return ops;
-        }
-
-        async function nubeEnviar(ops) {
-            let fallo = null;
-            await Promise.all(ops.map(async function(op) {
-                try {
-                    const base = DB_ROOT + '/' + op.coll;
-                    let r;
-                    if (op.type === 'put') {
-                        const t = nubeSemilla && nubeSemilla[op.coll] ? nubeSemilla[op.coll][op.key] : undefined;
-                        const body = Object.assign({}, op.item, { _t: t !== undefined ? t : { '.sv': 'timestamp' } });
-                        r = await fetch(base + '/' + encodeURIComponent(op.key) + '.json', { method: 'PUT', body: JSON.stringify(body) });
-                    } else if (op.type === 'patch') {
-                        r = await fetch(base + '/' + encodeURIComponent(op.key) + '.json', { method: 'PATCH', body: JSON.stringify(op.item) });
-                    } else if (op.type === 'del') {
-                        r = await fetch(base + '/' + encodeURIComponent(op.key) + '.json', { method: 'DELETE' });
-                    } else {
-                        r = await fetch(base + '.json', { method: 'DELETE' });
-                    }
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    nubeShadow[op.coll] = nubeShadow[op.coll] || {};
-                    if (op.type === 'put' || op.type === 'patch') nubeShadow[op.coll][op.key] = op.n;
-                    else if (op.type === 'del') delete nubeShadow[op.coll][op.key];
-                    else nubeShadow[op.coll] = {};
-                } catch (e) { fallo = e; }
-            }));
-            if (fallo) throw fallo;
-        }
-
-        // Aplica lo que hay en la nube a esta pantalla
-        function nubeAplicar(remoto) {
-            let cambio = false;
-            const nuevo = {};
-            NUBE_COLS.forEach(function(c) {
-                const filas = nubeLista(remoto[c]).map(function(r) {
-                    const item = Object.assign({}, r);
-                    const t = typeof item._t === 'number' ? item._t : 0;
-                    delete item._t;
-                    return { item: item, t: t, key: nubeKey(c, item) };
-                });
-                filas.sort(function(a, b) {
-                    const d = NUBE_NUEVOS_PRIMERO[c] ? b.t - a.t : a.t - b.t;
-                    return d || (a.key < b.key ? -1 : 1);
-                });
-                nuevo[c] = {};
-                filas.forEach(function(f) { nuevo[c][f.key] = nubeNorm(f.item); });
-                const lista = filas.map(function(f) { return f.item; });
-                if (JSON.stringify((state[c] || []).map(nubeNorm)) !== JSON.stringify(lista.map(nubeNorm))) {
-                    state[c] = lista;
-                    cambio = true;
-                }
-            });
-            nubeShadow = nuevo;
-            if (cambio) {
-                saveStateLocal();
-                nubeRenderPendiente = true;
-                nubeRefrescar();
-            }
-        }
-
-        // No se redibuja la pantalla mientras alguien está escribiendo en un formulario
-        function nubeRefrescar() {
-            if (!nubeRenderPendiente) return;
-            const ae = document.activeElement, app = document.getElementById('app');
-            if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && app && app.contains(ae)) return;
-            nubeRenderPendiente = false;
-            render();
-        }
-
-        async function nubeSync() {
-            if (nubeSincronizando) { nubeOtraVez = true; return; }
-            nubeSincronizando = true;
-            try {
-                do {
-                    nubeOtraVez = false;
-                    if (!nubeInicializada) {
-                        const remoto = await nubeGet();
-                        const vacia = !remoto || NUBE_COLS.every(function(c) { return !remoto[c]; });
-                        if (vacia) {
-                            // Base vacía: se siembra con los datos de este dispositivo (conservando su orden)
-                            nubeSemilla = {};
-                            NUBE_COLS.forEach(function(c) {
-                                nubeSemilla[c] = {};
-                                (state[c] || []).forEach(function(it, i) { nubeSemilla[c][nubeKey(c, it)] = NUBE_NUEVOS_PRIMERO[c] ? 1e12 - i : 1e12 + i; });
-                            });
-                            nubeShadow = {};
-                            nubeEstado('sync');
-                            await nubeEnviar(nubeOps());
-                            nubeSemilla = null;
-                        } else {
-                            nubeAplicar(remoto);
-                        }
-                        nubeInicializada = true;
-                    } else {
-                        const ops = nubeOps();
-                        if (ops.length) { nubeEstado('sync'); await nubeEnviar(ops); }
-                        const remoto = await nubeGet();
-                        if (nubeOps().length === 0) nubeAplicar(remoto || {});
-                        else nubeOtraVez = true;
-                    }
-                } while (nubeOtraVez);
-                await nubeReintentarAccesos();
-                nubeEstado('ok');
-            } catch (e) {
-                nubeEstado(e && e.denied ? 'denied' : 'off');
-                clearTimeout(nubeReintento);
-                nubeReintento = setTimeout(nubeSync, 8000);
-            } finally {
-                nubeSincronizando = false;
-            }
-        }
-
-        // Cada vez que la app guarda, además de guardar en el dispositivo se envía a la nube
-        window.saveState = function() {
-            saveStateLocal();
-            if (!nubeInicializada) return;
-            if (nubeOps().length) {
-                clearTimeout(nubeTimer);
-                nubeTimer = setTimeout(nubeSync, 150);
-            }
-        };
-
-        // Constancia de accesos en la nube (bedelia/accesos), con fecha y hora del servidor
-        async function nubeEnviarAcceso(reg) {
-            const r = await fetch(DB_ROOT + '/accesos.json', { method: 'POST', body: JSON.stringify(Object.assign({}, reg, { fecha: { '.sv': 'timestamp' } })) });
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-        }
-        function nubeRegistrarAcceso(reg) {
-            nubeEnviarAcceso(reg).catch(function() {
-                try {
-                    const q = JSON.parse(localStorage.getItem(ACC_PEND_KEY) || '[]');
-                    q.push(reg);
-                    localStorage.setItem(ACC_PEND_KEY, JSON.stringify(q));
-                } catch (e) {}
-            });
-        }
-        async function nubeReintentarAccesos() {
-            let q = [];
-            try { q = JSON.parse(localStorage.getItem(ACC_PEND_KEY) || '[]'); } catch (e) {}
-            if (!q.length) return;
-            const resto = [];
-            for (const reg of q) {
-                try { await nubeEnviarAcceso(reg); } catch (e) { resto.push(reg); }
-            }
-            try { localStorage.setItem(ACC_PEND_KEY, JSON.stringify(resto)); } catch (e) {}
-        }
-
-        // Escucha en tiempo real: cuando otro dispositivo cambia algo, este se actualiza solo
-        function nubeIniciarStream() {
-            try {
-                if (nubeES) nubeES.close();
-                nubeES = new EventSource(DB_ROOT + '.json');
-                const pull = function() { clearTimeout(nubePullTimer); nubePullTimer = setTimeout(nubeSync, 200); };
-                nubeES.addEventListener('put', pull);
-                nubeES.addEventListener('patch', pull);
-                nubeES.onerror = function() {
-                    if (!navigator.onLine) nubeEstado('off');
-                    if (nubeES && nubeES.readyState === 2) setTimeout(nubeIniciarStream, 10000);
-                };
-            } catch (e) {}
-        }
-
-        window.addEventListener('load', function() {
-            nubeEstado('sync');
-            nubeSync();
-            nubeIniciarStream();
-            setInterval(nubeRefrescar, 1000);
-            setInterval(function() { if (!document.hidden) nubeSync(); }, 60000);
-        });
-        document.addEventListener('visibilitychange', function() { if (!document.hidden) nubeSync(); });
-        window.addEventListener('online', function() { nubeSync(); nubeIniciarStream(); });
-        window.addEventListener('offline', function() { nubeEstado('off'); });
-
-        // ================= APP INSTALABLE (PWA) =================
-        if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-            window.addEventListener('load', function() {
-                const teniaControl = !!navigator.serviceWorker.controller;
-                let recargado = false;
-                navigator.serviceWorker.register('sw.js').catch(function() {});
-                // Si hay una versión nueva publicada en GitHub, la app se actualiza sola
-                navigator.serviceWorker.addEventListener('controllerchange', function() {
-                    if (teniaControl && !recargado) { recargado = true; location.reload(); }
-                });
-            });
-        }
-
-        window.onload = function() {
-            render();
-        };
+        window.onload = function() { render(); };
     </script>
 </body>
 </html>
