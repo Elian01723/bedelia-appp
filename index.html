@@ -24,11 +24,11 @@
     <div id="app" class="h-full flex flex-col"></div>
 
     <script>
-        const STORAGE_KEY = 'bedelia_app_perfect_v10';
+        const STORAGE_KEY = 'bedelia_app_fixed_v11';
         
         let state = loadState();
         let termsAccepted = false;
-        let authView = 'login'; // 'login' o 'register'
+        let authView = 'login';
 
         function loadState() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -55,7 +55,7 @@
                     { id: 1, profesor: 'Dr. Carlos Mendoza', equipo: 'PC-02 (Laptop)', fecha: 'Hoy, 08:30 AM', estado: 'Activo' }
                 ],
                 historialLogs: [
-                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Sistema listo con rol de administrador y registro de equipos activo.' }
+                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Sistema inicializado con formulario de equipos visible para Admin.' }
                 ],
                 toast: null
             };
@@ -178,7 +178,7 @@
                                 <i class="fa-solid fa-user-plus text-2xl"></i>
                             </div>
                             <h1 class="text-2xl font-bold tracking-tight text-white">Registro de Nueva Cuenta</h1>
-                            <p class="text-xs text-slate-400">Crea tu usuario personal para solicitar equipos</p>
+                            <p class="text-xs text-slate-400">Crea tu usuario personal</p>
                         </div>
 
                         <form onsubmit="handleRegister(event)" class="space-y-4">
@@ -395,7 +395,6 @@
 
             return `
                 <div class="space-y-6">
-                    <!-- Formulario de Solicitud -->
                     <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
                         <h3 class="font-bold text-white text-sm">
                             ${esAdmin ? 'Registrar Préstamo Directo (Admin)' : `Solicitar Equipo a nombre de: <span class="text-blue-400">${state.currentUser.name}</span>`}
@@ -424,7 +423,6 @@
                         </form>
                     </div>
 
-                    <!-- Solicitudes Pendientes (Solo Admin) -->
                     ${esAdmin && state.solicitudesPendientes.length > 0 ? `
                     <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 space-y-4">
                         <div class="flex items-center space-x-2">
@@ -460,7 +458,6 @@
                         </table>
                     </div>` : ''}
 
-                    <!-- Préstamos Activos -->
                     <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
                         <h3 class="font-bold text-white text-sm">Préstamos Activos en la Universidad</h3>
                         <table class="w-full text-left text-xs">
@@ -492,13 +489,11 @@
         }
 
         function renderEquiposView() {
-            const esAdmin = state.currentUser.role === 'Administrador';
             return `
                 <div class="space-y-6">
-                    <!-- Formulario EXCLUSIVO de Administrador para agregar nuevos PCs / Video-beams -->
-                    ${esAdmin ? `
+                    ${state.currentUser.role === 'Administrador' ? `
                     <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <h3 class="font-bold text-white text-sm">Añadir Nuevo Equipo al Inventario (Solo Admin)</h3>
+                        <h3 class="font-bold text-white text-sm">Añadir Nuevo Equipo al Inventario (Solo Administrador)</h3>
                         <form onsubmit="registrarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                             <input type="text" id="eqCod" placeholder="Código (ej. PC-03)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
                             <select id="eqTipo" class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
@@ -659,7 +654,7 @@
             const prestamo = state.prestamos.find(p => p.id === id);
             if (prestamo) {
                 state.prestamos = state.prestamos.filter(p => p.id !== id);
-                const codigoLimpio = equipoStr.split(' ')[0];
+                let codigoLimpio = equipoStr.split(' ')[0];
                 const eqObj = state.equipos.find(e => e.codigo === codigoLimpio);
                 if (eqObj) eqObj.estado = 'Disponible';
 
