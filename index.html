@@ -24,7 +24,7 @@
     <div id="app" class="h-full flex flex-col"></div>
 
     <script>
-        const STORAGE_KEY = 'bedelia_app_fixed_v11';
+        const STORAGE_KEY = 'bedelia_app_fixed_v12';
         
         let state = loadState();
         let termsAccepted = false;
@@ -55,7 +55,7 @@
                     { id: 1, profesor: 'Dr. Carlos Mendoza', equipo: 'PC-02 (Laptop)', fecha: 'Hoy, 08:30 AM', estado: 'Activo' }
                 ],
                 historialLogs: [
-                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Sistema inicializado con formulario de equipos visible para Admin.' }
+                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Sistema configurado con registro exclusivo para docentes.' }
                 ],
                 toast: null
             };
@@ -160,7 +160,7 @@
 
                             <div class="text-center pt-2">
                                 <button type="button" onclick="authView='register'; render();" class="text-xs text-blue-400 hover:underline">
-                                    ¿No tienes cuenta? <strong>Regístrate aquí (Admin o Docente)</strong>
+                                    ¿No tienes cuenta? <strong>Regístrate como Docente</strong>
                                 </button>
                             </div>
                         </form>
@@ -177,8 +177,8 @@
                             <div class="inline-flex p-3.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-2xl mb-1">
                                 <i class="fa-solid fa-user-plus text-2xl"></i>
                             </div>
-                            <h1 class="text-2xl font-bold tracking-tight text-white">Registro de Nueva Cuenta</h1>
-                            <p class="text-xs text-slate-400">Crea tu usuario personal</p>
+                            <h1 class="text-2xl font-bold tracking-tight text-white">Registro de Docente</h1>
+                            <p class="text-xs text-slate-400">Crea tu usuario para solicitar equipos</p>
                         </div>
 
                         <form onsubmit="handleRegister(event)" class="space-y-4">
@@ -200,16 +200,8 @@
                                     class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
                             </div>
 
-                            <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Rol en la Plataforma</label>
-                                <select id="regRol" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
-                                    <option value="Usuario">Docente / Usuario (Solicita equipos)</option>
-                                    <option value="Administrador">Administrador (Gestiona todo el sistema)</option>
-                                </select>
-                            </div>
-
                             <button type="submit" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
-                                Registrar Cuenta en la BD
+                                Registrar Cuenta de Docente
                             </button>
 
                             <div class="text-center pt-2">
@@ -228,7 +220,7 @@
             const nombre = document.getElementById('regNombre').value.trim();
             const correo = document.getElementById('regCorreo').value.trim().toLowerCase();
             const password = document.getElementById('regPass').value;
-            const rol = document.getElementById('regRol').value;
+            const rol = 'Usuario'; // Fijo para que todo el que se registre sea Docente / Usuario
 
             if (state.usuariosBD.some(u => u.correo === correo)) {
                 showToast('Ya existe una cuenta con este correo', 'error');
@@ -237,16 +229,14 @@
 
             state.usuariosBD.push({ correo, password, nombre, rol });
             
-            if (rol === 'Usuario') {
-                const ccMock = Math.floor(100000000 + Math.random() * 900000000).toString();
-                if (!state.profesores.some(p => p.email === correo || p.nombre === nombre)) {
-                    state.profesores.push({ cc: ccMock, nombre, email: correo, depto: 'Facultad Académica' });
-                }
+            const ccMock = Math.floor(100000000 + Math.random() * 900000000).toString();
+            if (!state.profesores.some(p => p.email === correo || p.nombre === nombre)) {
+                state.profesores.push({ cc: ccMock, nombre, email: correo, depto: 'Facultad Académica' });
             }
 
-            registrarLog('REGISTRO', `Nueva cuenta creada (${rol}): ${nombre} (${correo})`);
+            registrarLog('REGISTRO', `Nuevo docente registrado: ${nombre} (${correo})`);
             saveState();
-            showToast('¡Cuenta registrada con éxito! Ya puedes iniciar sesión.');
+            showToast('¡Cuenta de docente registrada con éxito! Ya puedes iniciar sesión.');
             authView = 'login';
             render();
         }
