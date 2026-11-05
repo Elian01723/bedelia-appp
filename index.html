@@ -24,7 +24,7 @@
     <div id="app" class="h-full flex flex-col"></div>
 
     <script>
-        const STORAGE_KEY = 'bedelia_app_final_clean_v9';
+        const STORAGE_KEY = 'bedelia_app_perfect_v10';
         
         let state = loadState();
         let termsAccepted = false;
@@ -55,7 +55,7 @@
                     { id: 1, profesor: 'Dr. Carlos Mendoza', equipo: 'PC-02 (Laptop)', fecha: 'Hoy, 08:30 AM', estado: 'Activo' }
                 ],
                 historialLogs: [
-                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Base de datos inicializada con permisos estrictos de usuario.' }
+                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Sistema listo con rol de administrador y registro de equipos activo.' }
                 ],
                 toast: null
             };
@@ -90,7 +90,6 @@
                 return;
             }
 
-            // Seguridad estricta: Si un usuario normal intenta entrar a pestañas prohibidas, lo devolvemos al dashboard
             if (state.currentUser.role !== 'Administrador' && (state.activeTab === 'profesores' || state.activeTab === 'historial')) {
                 state.activeTab = 'dashboard';
             }
@@ -184,7 +183,7 @@
 
                         <form onsubmit="handleRegister(event)" class="space-y-4">
                             <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Nombre Completo (Ej. Juan)</label>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Nombre Completo</label>
                                 <input type="text" id="regNombre" required placeholder="Tu nombre completo"
                                     class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
                             </div>
@@ -204,8 +203,8 @@
                             <div>
                                 <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Rol en la Plataforma</label>
                                 <select id="regRol" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
-                                    <option value="Usuario">Docente / Usuario (Solicita equipos a tu nombre)</option>
-                                    <option value="Administrador">Administrador (Gestiona y aprueba)</option>
+                                    <option value="Usuario">Docente / Usuario (Solicita equipos)</option>
+                                    <option value="Administrador">Administrador (Gestiona todo el sistema)</option>
                                 </select>
                             </div>
 
@@ -289,7 +288,6 @@
                 { id: 'equipos', label: 'Gestión de Equipos', icon: 'fa-desktop' }
             ];
 
-            // EXCLUSIVO PARA ADMINISTRADOR: Directorio de Profesores e Historial de Logs
             if (state.currentUser.role === 'Administrador') {
                 tabs.push({ id: 'profesores', label: 'Directorio Profesores', icon: 'fa-chalkboard-user' });
                 tabs.push({ id: 'historial', label: 'Historial y Logs (BD)', icon: 'fa-clock-rotate-left' });
@@ -400,7 +398,7 @@
                     <!-- Formulario de Solicitud -->
                     <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
                         <h3 class="font-bold text-white text-sm">
-                            ${esAdmin ? 'Registrar Préstamo Directo' : `Solicitar Equipo a nombre de: <span class="text-blue-400">${state.currentUser.name}</span>`}
+                            ${esAdmin ? 'Registrar Préstamo Directo (Admin)' : `Solicitar Equipo a nombre de: <span class="text-blue-400">${state.currentUser.name}</span>`}
                         </h3>
                         <form onsubmit="solicitarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             ${esAdmin ? `
@@ -439,7 +437,7 @@
                                     <th class="py-3 px-3">Docente</th>
                                     <th class="py-3 px-3">Equipo</th>
                                     <th class="py-3 px-3">Hora</th>
-                                    <th class="py-3 px-3 text-right">Acciones de Aprobación</th>
+                                    <th class="py-3 px-3 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-amber-500/10">
@@ -494,33 +492,51 @@
         }
 
         function renderEquiposView() {
+            const esAdmin = state.currentUser.role === 'Administrador';
             return `
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Inventario de Equipos (Disponibles y Prestados)</h3>
-                    <table class="w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-slate-800 text-slate-400">
-                                <th class="py-3 px-3">Código</th>
-                                <th class="py-3 px-3">Tipo</th>
-                                <th class="py-3 px-3">Modelo</th>
-                                <th class="py-3 px-3">Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800">
-                            ${state.equipos.map(e => `
-                                <tr>
-                                    <td class="py-3 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
-                                    <td class="py-3 px-3">${e.tipo}</td>
-                                    <td class="py-3 px-3 text-slate-200">${e.modelo}</td>
-                                    <td class="py-3 px-3">
-                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-medium ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
-                                            ${e.estado}
-                                        </span>
-                                    </td>
+                <div class="space-y-6">
+                    <!-- Formulario EXCLUSIVO de Administrador para agregar nuevos PCs / Video-beams -->
+                    ${esAdmin ? `
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Añadir Nuevo Equipo al Inventario (Solo Admin)</h3>
+                        <form onsubmit="registrarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <input type="text" id="eqCod" placeholder="Código (ej. PC-03)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <select id="eqTipo" class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                                <option value="Video-beam">Video-beam</option>
+                                <option value="Laptop">Laptop / PC</option>
+                            </select>
+                            <input type="text" id="eqMod" placeholder="Modelo (ej. Dell Latitude)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <button type="submit" class="py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-xl font-medium">Registrar Equipo</button>
+                        </form>
+                    </div>` : ''}
+
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Inventario de Equipos (Disponibles y Prestados)</h3>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-3">Código</th>
+                                    <th class="py-3 px-3">Tipo</th>
+                                    <th class="py-3 px-3">Modelo</th>
+                                    <th class="py-3 px-3">Estado</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                ${state.equipos.map(e => `
+                                    <tr>
+                                        <td class="py-3 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
+                                        <td class="py-3 px-3">${e.tipo}</td>
+                                        <td class="py-3 px-3 text-slate-200">${e.modelo}</td>
+                                        <td class="py-3 px-3">
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-medium ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                                                ${e.estado}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
@@ -554,7 +570,7 @@
         function renderHistorialView() {
             return `
                 <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Exclusivo Administrador)</h3>
+                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Fecha y Hora - Exclusivo Administrador)</h3>
                     <table class="w-full text-left text-xs">
                         <thead>
                             <tr class="border-b border-slate-800 text-slate-400">
@@ -652,6 +668,24 @@
                 showToast('Equipo devuelto correctamente');
                 render();
             }
+        }
+
+        function registrarEquipo(e) {
+            e.preventDefault();
+            const codigo = document.getElementById('eqCod').value.trim().toUpperCase();
+            const tipo = document.getElementById('eqTipo').value;
+            const modelo = document.getElementById('eqMod').value.trim();
+
+            if (state.equipos.some(eq => eq.codigo === codigo)) {
+                showToast('Ya existe un equipo con ese código', 'error');
+                return;
+            }
+
+            state.equipos.push({ codigo, tipo, modelo, estado: 'Disponible' });
+            registrarLog('EQUIPO', `Se añadió equipo al inventario: ${codigo} - ${modelo}`);
+            saveState();
+            showToast('¡Equipo registrado con éxito!');
+            render();
         }
 
         window.onload = function() { render(); };
