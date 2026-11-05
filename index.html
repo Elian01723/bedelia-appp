@@ -24,7 +24,7 @@
     <div id="app" class="h-full flex flex-col"></div>
 
     <script>
-        const STORAGE_KEY = 'bedelia_app_pro_v7';
+        const STORAGE_KEY = 'bedelia_app_strict_roles_v8';
         
         let state = loadState();
         let termsAccepted = false;
@@ -55,7 +55,7 @@
                     { id: 1, profesor: 'Dr. Carlos Mendoza', equipo: 'PC-02 (Laptop)', fecha: 'Hoy, 08:30 AM', estado: 'Activo' }
                 ],
                 historialLogs: [
-                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Base de datos inicializada con control de roles y rechazos.' }
+                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Base de datos inicializada con control estricto de vistas por rol.' }
                 ],
                 toast: null
             };
@@ -90,6 +90,11 @@
                 return;
             }
 
+            // Si un usuario normal intenta entrar a pestañas prohibidas, lo devolvemos al dashboard
+            if (state.currentUser.role !== 'Administrador' && (state.activeTab === 'profesores' || state.activeTab === 'historial')) {
+                state.activeTab = 'dashboard';
+            }
+
             app.innerHTML = `
                 <div class="h-full flex flex-col md:flex-row bg-slate-950 overflow-hidden">
                     ${renderSidebar()}
@@ -102,7 +107,7 @@
                                     state.activeTab === 'dashboard' ? renderDashboardView() :
                                     state.activeTab === 'prestamos' ? renderPrestamosView() :
                                     state.activeTab === 'equipos' ? renderEquiposView() :
-                                    state.activeTab === 'profesores' ? renderProfesoresView() :
+                                    (state.activeTab === 'profesores' && state.currentUser.role === 'Administrador') ? renderProfesoresView() :
                                     (state.activeTab === 'historial' && state.currentUser.role === 'Administrador') ? renderHistorialView() : renderDashboardView()
                                 }
                             </div>
@@ -281,12 +286,12 @@
             const tabs = [
                 { id: 'dashboard', label: 'Dashboard General', icon: 'fa-chart-pie' },
                 { id: 'prestamos', label: state.currentUser.role === 'Administrador' ? 'Solicitudes & Préstamos' : 'Solicitar Equipos', icon: 'fa-clipboard-list' },
-                { id: 'equipos', label: 'Gestión de Equipos', icon: 'fa-desktop' },
-                { id: 'profesores', label: 'Directorio Profesores', icon: 'fa-chalkboard-user' }
+                { id: 'equipos', label: 'Gestión de Equipos', icon: 'fa-desktop' }
             ];
 
-            // Solo el administrador ve la pestaña de Historial y Logs
+            // EXCLUSIVO PARA ADMINISTRADOR: Directorio de Profesores e Historial de Logs
             if (state.currentUser.role === 'Administrador') {
+                tabs.push({ id: 'profesores', label: 'Directorio Profesores', icon: 'fa-chalkboard-user' });
                 tabs.push({ id: 'historial', label: 'Historial y Logs (BD)', icon: 'fa-clock-rotate-left' });
             }
 
@@ -395,7 +400,7 @@
                     <!-- Formulario de Solicitud -->
                     <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
                         <h3 class="font-bold text-white text-sm">
-                            ${esAdmin ? 'Registrar Préstamo Directo' : `Solicitar Préstamo para: <span class="text-blue-400">${state.currentUser.name}</span>`}
+                            ${esAdmin ? 'Registrar Préstamo Directo' : `Solicitar Equipo a nombre de: <span class="text-blue-400">${state.currentUser.name}</span>`}
                         </h3>
                         <form onsubmit="solicitarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             ${esAdmin ? `
@@ -448,7 +453,7 @@
                                                 <i class="fa-solid fa-check mr-1"></i> Aceptar
                                             </button>
                                             <button onclick="rechazarSolicitudPrompt(${s.id})" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold rounded-lg shadow-md shadow-rose-600/30">
-                                                <i class="fa-solid xmark mr-1"></i> Rechazar
+                                                <i class="fa-solid fa-xmark mr-1"></i> Rechazar
                                             </button>
                                         </td>
                                     </tr>
@@ -489,50 +494,33 @@
         }
 
         function renderEquiposView() {
-            const esAdmin = state.currentUser.role === 'Administrador';
             return `
-                <div class="space-y-6">
-                    ${esAdmin ? `
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <h3 class="font-bold text-white text-sm">Añadir Nuevo Equipo al Inventario</h3>
-                        <form onsubmit="registrarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                            <input type="text" id="eqCod" placeholder="Código (ej. PC-03)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                            <select id="eqTipo" class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                                <option value="Video-beam">Video-beam</option>
-                                <option value="Laptop">Laptop / PC</option>
-                            </select>
-                            <input type="text" id="eqMod" placeholder="Modelo" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                            <button type="submit" class="py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-xl font-medium">Registrar Equipo</button>
-                        </form>
-                    </div>` : ''}
-
-                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <h3 class="font-bold text-white text-sm">Inventario de Equipos</h3>
-                        <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b border-slate-800 text-slate-400">
-                                    <th class="py-3 px-3">Código</th>
-                                    <th class="py-3 px-3">Tipo</th>
-                                    <th class="py-3 px-3">Modelo</th>
-                                    <th class="py-3 px-3">Estado</th>
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 class="font-bold text-white text-sm">Inventario de Equipos (Disponibles y Prestados)</h3>
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-400">
+                                <th class="py-3 px-3">Código</th>
+                                <th class="py-3 px-3">Tipo</th>
+                                <th class="py-3 px-3">Modelo</th>
+                                <th class="py-3 px-3">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800">
+                            ${state.equipos.map(e => `
+                                <tr>
+                                    <td class="py-3 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
+                                    <td class="py-3 px-3">${e.tipo}</td>
+                                    <td class="py-3 px-3 text-slate-200">${e.modelo}</td>
+                                    <td class="py-3 px-3">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] font-medium ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                                            ${e.estado}
+                                        </span>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-800">
-                                ${state.equipos.map(e => `
-                                    <tr>
-                                        <td class="py-3 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
-                                        <td class="py-3 px-3">${e.tipo}</td>
-                                        <td class="py-3 px-3 text-slate-200">${e.modelo}</td>
-                                        <td class="py-3 px-3">
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-medium ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
-                                                ${e.estado}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
         }
@@ -540,7 +528,7 @@
         function renderProfesoresView() {
             return `
                 <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Directorio de Docentes Registrados</h3>
+                    <h3 class="font-bold text-white text-sm">Directorio de Docentes Registrados (Vista exclusiva Admin)</h3>
                     <table class="w-full text-left text-xs">
                         <thead>
                             <tr class="border-b border-slate-800 text-slate-400">
@@ -566,7 +554,7 @@
         function renderHistorialView() {
             return `
                 <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Solo visible para el Administrador)</h3>
+                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Inicios de sesión, solicitudes y aprobaciones con Fecha y Hora - Exclusivo Admin)</h3>
                     <table class="w-full text-left text-xs">
                         <thead>
                             <tr class="border-b border-slate-800 text-slate-400">
@@ -664,24 +652,6 @@
                 showToast('Equipo devuelto correctamente');
                 render();
             }
-        }
-
-        function registrarEquipo(e) {
-            e.preventDefault();
-            const codigo = document.getElementById('eqCod').value.trim().toUpperCase();
-            const tipo = document.getElementById('eqTipo').value;
-            const modelo = document.getElementById('eqMod').value.trim();
-
-            if (state.equipos.some(eq => eq.codigo === codigo)) {
-                showToast('Ya existe un equipo con ese código', 'error');
-                return;
-            }
-
-            state.equipos.push({ codigo, tipo, modelo, estado: 'Disponible' });
-            registrarLog('EQUIPO', `Se añadió equipo al inventario: ${codigo} - ${modelo}`);
-            saveState();
-            showToast('¡Equipo agregado con éxito!');
-            render();
         }
 
         window.onload = function() { render(); };
