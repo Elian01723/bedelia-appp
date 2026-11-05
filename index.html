@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bedelía U - Dashboard y Control de Equipos</title>
+    <title>Bedelía U - Control y Gestión de Equipos</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
@@ -21,12 +21,10 @@
 </head>
 <body class="h-full bg-slate-900 text-slate-100 flex flex-col antialiased selection:bg-blue-500 selection:text-white">
 
-    <div id="app" class="h-full flex flex-col">
-        <!-- Contenido renderizado dinámicamente -->
-    </div>
+    <div id="app" class="h-full flex flex-col"></div>
 
     <script>
-        const STORAGE_KEY = 'bedelia_app_multiuser_db_v4';
+        const STORAGE_KEY = 'bedelia_app_approval_db_v6';
         
         let state = loadState();
         let termsAccepted = false;
@@ -42,19 +40,23 @@
                 activeTab: 'dashboard',
                 usuariosBD: [
                     { correo: 'bedelia.admin@universidad.edu', password: '123456', nombre: 'Administrador General', rol: 'Administrador' },
-                    { correo: 'profesor@universidad.edu', password: '123456', nombre: 'Docente de Prueba', rol: 'Usuario' }
+                    { correo: 'profesor@universidad.edu', password: '123456', nombre: 'Dr. Carlos Mendoza', rol: 'Usuario' }
                 ],
                 profesores: [
-                    { cc: '1098765432', nombre: 'Dr. Carlos Mendoza' },
-                    { cc: '1023456789', nombre: 'Dra. Ana María Gómez' }
+                    { cc: '1098765432', nombre: 'Dr. Carlos Mendoza', email: 'carlos.mendoza@universidad.edu', depto: 'Ingeniería de Sistemas' },
+                    { cc: '1023456789', nombre: 'Dra. Ana María Gómez', email: 'ana.gomez@universidad.edu', depto: 'Electrónica' }
                 ],
                 equipos: [
                     { codigo: 'VB-01', tipo: 'Video-beam', modelo: 'Epson PowerLite X49', estado: 'Disponible' },
-                    { codigo: 'PC-01', tipo: 'Laptop', modelo: 'Dell Latitude 3420', estado: 'Disponible' }
+                    { codigo: 'PC-01', tipo: 'Laptop', modelo: 'Dell Latitude 3420', estado: 'Disponible' },
+                    { codigo: 'PC-02', tipo: 'Laptop', modelo: 'HP ProBook 450 G8', estado: 'Prestado' }
                 ],
-                prestamos: [],
+                solicitudesPendientes: [], // Solicitudes esperando aprobación del admin
+                prestamos: [
+                    { id: 1, profesor: 'Dr. Carlos Mendoza', equipo: 'PC-02 (Laptop)', fecha: 'Hoy, 08:30 AM', estado: 'Activo' }
+                ],
                 historialLogs: [
-                    { id: 1, fecha: 'Hoy, 09:15 AM', tipo: 'SISTEMA', descripcion: 'Base de datos inicializada correctamente', color: 'blue' }
+                    { id: 1, fecha: 'Hoy, 08:00 AM', tipo: 'SISTEMA', descripcion: 'Base de datos sincronizada y módulo de aprobaciones activo.' }
                 ],
                 toast: null
             };
@@ -64,10 +66,10 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }
 
-        function registrarLog(tipo, descripcion, color = 'blue') {
+        function registrarLog(tipo, descripcion) {
             const now = new Date();
             const fecha = `Hoy, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-            state.historialLogs.unshift({ id: Date.now(), fecha, tipo, descripcion, color });
+            state.historialLogs.unshift({ id: Date.now(), fecha, tipo, descripcion });
             saveState();
         }
 
@@ -120,13 +122,13 @@
                                 <i class="fa-solid fa-graduation-cap text-2xl"></i>
                             </div>
                             <h1 class="text-2xl font-bold tracking-tight text-white">Bedelía Universitaria</h1>
-                            <p class="text-xs text-slate-400">Inicia sesión con tu cuenta de Administrador o Usuario</p>
+                            <p class="text-xs text-slate-400">Control de Préstamos con Aprobación en Línea</p>
                         </div>
 
                         <form onsubmit="handleLogin(event)" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Correo Electrónico</label>
-                                <input type="email" id="loginUser" required placeholder="ejemplo@universidad.edu"
+                                <input type="email" id="loginUser" required placeholder="bedelia.admin@universidad.edu"
                                     class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-blue-500">
                             </div>
 
@@ -145,17 +147,17 @@
                                 <label class="flex items-center space-x-3 cursor-pointer select-none">
                                     <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="termsAccepted = this.checked"
                                         class="h-4 w-4 rounded border-slate-700 bg-slate-950 accent-blue-600 cursor-pointer">
-                                    <span class="text-xs text-slate-400">Acepto los términos de uso del sistema</span>
+                                    <span class="text-xs text-slate-400">Acepto los términos y condiciones del sistema</span>
                                 </label>
                             </div>
 
                             <button type="submit" class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all">
-                                Iniciar Sesión
+                                Iniciar Sesión en el Sistema
                             </button>
 
                             <div class="text-center pt-2">
                                 <button type="button" onclick="authView='register'; render();" class="text-xs text-blue-400 hover:underline">
-                                    ¿No tienes cuenta? <strong>Regístrate aquí (Admin o Usuario)</strong>
+                                    ¿No tienes cuenta? <strong>Regístrate aquí (Admin o Docente)</strong>
                                 </button>
                             </div>
                         </form>
@@ -172,19 +174,19 @@
                             <div class="inline-flex p-3.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-2xl mb-1">
                                 <i class="fa-solid fa-user-plus text-2xl"></i>
                             </div>
-                            <h1 class="text-2xl font-bold tracking-tight text-white">Crear Nueva Cuenta</h1>
-                            <p class="text-xs text-slate-400">Registra un nuevo Administrador o Usuario</p>
+                            <h1 class="text-2xl font-bold tracking-tight text-white">Registro de Cuenta</h1>
+                            <p class="text-xs text-slate-400">Crea una cuenta como Administrador o Docente</p>
                         </div>
 
                         <form onsubmit="handleRegister(event)" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Nombre Completo</label>
-                                <input type="text" id="regNombre" required placeholder="Ej. Juan Pérez"
+                                <input type="text" id="regNombre" required placeholder="Ej. Dr. Carlos Mendoza"
                                     class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
                             </div>
 
                             <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Correo Electrónico</label>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Correo Institucional</label>
                                 <input type="email" id="regCorreo" required placeholder="correo@universidad.edu"
                                     class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
                             </div>
@@ -196,15 +198,15 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Rol en el Sistema</label>
+                                <label class="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Rol en la Plataforma</label>
                                 <select id="regRol" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
-                                    <option value="Usuario">Usuario / Docente</option>
-                                    <option value="Administrador">Administrador</option>
+                                    <option value="Usuario">Docente / Usuario (Solicita equipos)</option>
+                                    <option value="Administrador">Administrador (Aprueba y gestiona)</option>
                                 </select>
                             </div>
 
                             <button type="submit" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
-                                Registrar Cuenta en la BD
+                                Registrar Cuenta
                             </button>
 
                             <div class="text-center pt-2">
@@ -226,14 +228,22 @@
             const rol = document.getElementById('regRol').value;
 
             if (state.usuariosBD.some(u => u.correo === correo)) {
-                showToast('Ya existe una cuenta registrada con este correo', 'error');
+                showToast('Ya existe una cuenta con este correo', 'error');
                 return;
             }
 
             state.usuariosBD.push({ correo, password, nombre, rol });
-            registrarLog('REGISTRO', `Se creó nueva cuenta (${rol}): ${nombre} (${correo})`, 'indigo');
+            
+            if (rol === 'Usuario') {
+                const ccMock = Math.floor(100000000 + Math.random() * 900000000).toString();
+                if (!state.profesores.some(p => p.email === correo)) {
+                    state.profesores.push({ cc: ccMock, nombre, email: correo, depto: 'Facultad Académica' });
+                }
+            }
+
+            registrarLog('REGISTRO', `Nueva cuenta creada (${rol}): ${nombre} (${correo})`);
             saveState();
-            showToast('¡Cuenta creada con éxito! Ya puedes iniciar sesión.');
+            showToast('¡Cuenta registrada con éxito! Ya puedes iniciar sesión.');
             authView = 'login';
             render();
         }
@@ -241,7 +251,7 @@
         function handleLogin(e) {
             e.preventDefault();
             if (!termsAccepted) {
-                alert('Debes aceptar los términos de uso.');
+                alert('Debes aceptar los términos y condiciones.');
                 return;
             }
             const correo = document.getElementById('loginUser').value.trim().toLowerCase();
@@ -254,14 +264,14 @@
             }
 
             state.currentUser = { name: userFound.nombre, role: userFound.rol, correo: userFound.correo };
-            registrarLog('SESIÓN', `Inicio de sesión exitoso: ${userFound.nombre} (${userFound.rol})`, 'blue');
+            registrarLog('SESIÓN', `Inicio de sesión exitoso: ${userFound.nombre} (${userFound.role})`);
             saveState();
-            showToast(`¡Bienvenido, ${userFound.nombre}!`);
+            showToast(`¡Bienvenido, ${userFound.name}!`);
             render();
         }
 
         function handleLogout() {
-            registrarLog('SESIÓN', `Cierre de sesión de ${state.currentUser.name}`, 'purple');
+            registrarLog('SESIÓN', `Cierre de sesión de ${state.currentUser.name}`);
             state.currentUser = null;
             saveState();
             showToast('Sesión finalizada', 'info');
@@ -271,7 +281,7 @@
         function renderSidebar() {
             const tabs = [
                 { id: 'dashboard', label: 'Dashboard General', icon: 'fa-chart-pie' },
-                { id: 'prestamos', label: 'Préstamos & Salidas', icon: 'fa-clipboard-list' },
+                { id: 'prestamos', label: state.currentUser.role === 'Administrador' ? 'Solicitudes & Préstamos' : 'Solicitar Equipos', icon: 'fa-clipboard-list' },
                 { id: 'equipos', label: 'Gestión de Equipos', icon: 'fa-desktop' },
                 { id: 'profesores', label: 'Directorio Profesores', icon: 'fa-chalkboard-user' },
                 { id: 'historial', label: 'Historial y Logs (BD)', icon: 'fa-clock-rotate-left' }
@@ -328,11 +338,11 @@
                 <header class="bg-slate-950/60 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
                     <div>
                         <h1 class="text-base font-bold text-white">Panel de Control (${state.currentUser.role})</h1>
-                        <p class="text-xs text-slate-400">Usuario activo: ${state.currentUser.correo}</p>
+                        <p class="text-xs text-slate-400">Conectado como: ${state.currentUser.correo}</p>
                     </div>
                     <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 font-medium flex items-center space-x-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Sincronizado</span>
+                        <span>Sincronizado en la Nube</span>
                     </div>
                 </header>
             `;
@@ -351,9 +361,9 @@
         function renderDashboardView() {
             return `
                 <div class="space-y-6">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Equipos Registrados</span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Equipos Totales</span>
                             <p class="text-3xl font-bold text-white mt-4">${state.equipos.length}</p>
                         </div>
                         <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
@@ -361,7 +371,11 @@
                             <p class="text-3xl font-bold text-white mt-4">${state.prestamos.length}</p>
                         </div>
                         <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
-                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cuentas en el Sistema</span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Solicitudes Pendientes</span>
+                            <p class="text-3xl font-bold text-amber-400 mt-4">${state.solicitudesPendientes.length}</p>
+                        </div>
+                        <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Cuentas en BD</span>
                             <p class="text-3xl font-bold text-white mt-4">${state.usuariosBD.length}</p>
                         </div>
                     </div>
@@ -371,37 +385,87 @@
 
         function renderPrestamosView() {
             const esAdmin = state.currentUser.role === 'Administrador';
+            const equiposDisponibles = state.equipos.filter(e => e.estado === 'Disponible');
+
             return `
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    ${esAdmin ? `
+                <div class="space-y-6">
+                    <!-- Formulario de Solicitud para el Profesor / Admin -->
                     <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <h3 class="font-bold text-white text-sm">Registrar Préstamo</h3>
-                        <form onsubmit="registrarPrestamo(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">Profesor / Solicitante</label>
-                                <input type="text" id="presNombre" required placeholder="Nombre del docente" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                            </div>
-                            <div>
-                                <label class="block text-xs text-slate-400 mb-1">Equipo (Ej. Laptop / Video-beam)</label>
-                                <input type="text" id="presEquipo" required placeholder="PC-01 o VB-01" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                            </div>
-                            <button type="submit" class="w-full py-3 bg-blue-600 text-white font-medium text-xs rounded-xl">Guardar Préstamo</button>
+                        <h3 class="font-bold text-white text-sm">
+                            ${esAdmin ? 'Registrar Préstamo Directo' : 'Solicitar Préstamo de Equipo (Envía notificación al Administrador)'}
+                        </h3>
+                        <form onsubmit="solicitarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <select id="solProfesor" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                                <option value="">Seleccione Docente...</option>
+                                ${state.profesores.map(p => `<option value="${p.nombre}" ${!esAdmin && p.nombre === state.currentUser.name ? 'selected' : ''}>${p.nombre}</option>`).join('')}
+                            </select>
+                            <select id="solEquipo" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                                <option value="">Seleccione Equipo Disponible...</option>
+                                ${equiposDisponibles.map(e => `<option value="${e.codigo} - ${e.modelo} (${e.tipo})">${e.codigo} - ${e.modelo} (${e.tipo})</option>`).join('')}
+                            </select>
+                            <button type="submit" class="py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs rounded-xl shadow-lg shadow-blue-600/30">
+                                ${esAdmin ? 'Aprobar y Registrar de Inmediato' : 'Enviar Solicitud al Admin'}
+                            </button>
                         </form>
+                    </div>
+
+                    <!-- Solicitudes Pendientes (Visible especialmente para el Administrador) -->
+                    ${esAdmin && state.solicitudesPendientes.length > 0 ? `
+                    <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <i class="fa-solid fa-bell text-amber-400 animate-bounce"></i>
+                            <h3 class="font-bold text-amber-300 text-sm">Solicitudes Pendientes de Docentes (${state.solicitudesPendientes.length})</h3>
+                        </div>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-amber-500/20 text-amber-200/70">
+                                    <th class="py-3 px-3">Docente</th>
+                                    <th class="py-3 px-3">Equipo Solicitado</th>
+                                    <th class="py-3 px-3">Hora de Solicitud</th>
+                                    <th class="py-3 px-3 text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-amber-500/10">
+                                ${state.solicitudesPendientes.map(s => `
+                                    <tr>
+                                        <td class="py-3 px-3 text-slate-200 font-medium">${s.profesor}</td>
+                                        <td class="py-3 px-3 font-mono text-amber-300">${s.equipo}</td>
+                                        <td class="py-3 px-3 text-slate-400">${s.fecha}</td>
+                                        <td class="py-3 px-3 text-right">
+                                            <button onclick="aprobarSolicitud(${s.id})" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-md shadow-emerald-600/30">
+                                                <i class="fa-solid fa-check mr-1"></i> Aceptar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>` : ''}
 
-                    <div class="${esAdmin ? 'lg:col-span-2' : 'lg:col-span-3'} bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                        <h3 class="font-bold text-white text-sm">Préstamos Sincronizados en Tiempo Real</h3>
+                    <!-- Préstamos Activos -->
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Historial de Préstamos Activos</h3>
                         <table class="w-full text-left text-xs">
                             <thead>
                                 <tr class="border-b border-slate-800 text-slate-400">
-                                    <th class="py-3 px-3">Solicitante</th>
+                                    <th class="py-3 px-3">Docente</th>
                                     <th class="py-3 px-3">Equipo</th>
                                     <th class="py-3 px-3">Hora</th>
+                                    <th class="py-3 px-3 text-right">Acción</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800">
-                                ${state.prestamos.length === 0 ? '<tr><td colspan="3" class="py-6 text-center text-slate-500">No hay préstamos activos.</td></tr>' : 
-                                  state.prestamos.map(p => `<tr><td class="py-3 px-3">${p.nombre}</td><td class="py-3 px-3">${p.equipo}</td><td class="py-3 px-3 text-slate-400">${p.hora}</td></tr>`).join('')}
+                                ${state.prestamos.length === 0 ? '<tr><td colspan="4" class="py-6 text-center text-slate-500">No hay préstamos activos registrados.</td></tr>' : 
+                                  state.prestamos.map(p => `
+                                    <tr>
+                                        <td class="py-3 px-3 text-slate-200">${p.profesor}</td>
+                                        <td class="py-3 px-3 font-mono text-blue-400">${p.equipo}</td>
+                                        <td class="py-3 px-3 text-slate-400">${p.fecha}</td>
+                                        <td class="py-3 px-3 text-right">
+                                            <button onclick="devolverPrestamo(${p.id}, '${p.equipo}')" class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg">Devolver</button>
+                                        </td>
+                                    </tr>
+                                  `).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -412,34 +476,88 @@
         function renderEquiposView() {
             const esAdmin = state.currentUser.role === 'Administrador';
             return `
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Inventario de Equipos (PCs y Video-beams)</h3>
+                <div class="space-y-6">
                     ${esAdmin ? `
-                    <form onsubmit="registrarEquipo(event)" class="flex gap-2 pb-4">
-                        <input type="text" id="eqCod" placeholder="Código (ej. PC-02)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                        <input type="text" id="eqMod" placeholder="Modelo / Tipo" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
-                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white text-xs rounded-xl font-medium">Añadir Equipo</button>
-                    </form>` : ''}
-                    <table class="w-full text-left text-xs">
-                        <thead><tr class="border-b border-slate-800 text-slate-400"><th class="py-3 px-3">Código</th><th class="py-3 px-3">Modelo</th><th class="py-3 px-3">Estado</th></tr></thead>
-                        <tbody class="divide-y divide-slate-800">
-                            ${state.equipos.map(e => `<tr><td class="py-3 px-3 font-mono text-blue-400">${e.codigo}</td><td class="py-3 px-3">${e.modelo}</td><td class="py-3 px-3"><span class="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded">${e.estado}</span></td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Añadir Nuevo Equipo (PCs / Video-beams)</h3>
+                        <form onsubmit="registrarEquipo(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <input type="text" id="eqCod" placeholder="Código (ej. VB-02)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <select id="eqTipo" class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                                <option value="Video-beam">Video-beam</option>
+                                <option value="Laptop">Laptop / PC</option>
+                            </select>
+                            <input type="text" id="eqMod" placeholder="Modelo (ej. Epson X49)" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <button type="submit" class="py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-xl font-medium">Registrar Equipo</button>
+                        </form>
+                    </div>` : ''}
+
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Inventario de Equipos Universitarios</h3>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-3">Código</th>
+                                    <th class="py-3 px-3">Tipo</th>
+                                    <th class="py-3 px-3">Modelo</th>
+                                    <th class="py-3 px-3">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                ${state.equipos.map(e => `
+                                    <tr>
+                                        <td class="py-3 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
+                                        <td class="py-3 px-3">${e.tipo}</td>
+                                        <td class="py-3 px-3 text-slate-200">${e.modelo}</td>
+                                        <td class="py-3 px-3">
+                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-medium ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                                                ${e.estado}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
 
         function renderProfesoresView() {
+            const esAdmin = state.currentUser.role === 'Administrador';
             return `
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Directorio de Profesores</h3>
-                    <table class="w-full text-left text-xs">
-                        <thead><tr class="border-b border-slate-800 text-slate-400"><th class="py-3 px-3">CC</th><th class="py-3 px-3">Nombre</th></tr></thead>
-                        <tbody class="divide-y divide-slate-800">
-                            ${state.profesores.map(p => `<tr><td class="py-3 px-3 font-mono text-emerald-400">${p.cc}</td><td class="py-3 px-3">${p.nombre}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
+                <div class="space-y-6">
+                    ${esAdmin ? `
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Registrar Nuevo Profesor en el Directorio</h3>
+                        <form onsubmit="registrarProfesor(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                            <input type="text" id="profCc" placeholder="Cédula / CC" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <input type="text" id="profNombre" placeholder="Nombre completo" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <input type="text" id="profDepto" placeholder="Departamento" required class="px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200">
+                            <button type="submit" class="py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-xl font-medium">Añadir Profesor</button>
+                        </form>
+                    </div>` : ''}
+
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Directorio de Docentes Autorizados</h3>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-3">Cédula (CC)</th>
+                                    <th class="py-3 px-3">Nombre del Docente</th>
+                                    <th class="py-3 px-3">Departamento</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                ${state.profesores.map(p => `
+                                    <tr>
+                                        <td class="py-3 px-3 font-mono text-emerald-400">${p.cc}</td>
+                                        <td class="py-3 px-3 text-slate-200 font-medium">${p.nombre}</td>
+                                        <td class="py-3 px-3 text-slate-400">${p.depto || 'Facultad Académica'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
@@ -447,39 +565,128 @@
         function renderHistorialView() {
             return `
                 <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Inicios de sesión y registros con Fecha y Hora)</h3>
+                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Inicios de sesión, solicitudes y aprobaciones con Fecha y Hora)</h3>
                     <table class="w-full text-left text-xs">
-                        <thead><tr class="border-b border-slate-800 text-slate-400"><th class="py-3 px-3">Fecha y Hora</th><th class="py-3 px-3">Tipo</th><th class="py-3 px-3">Acción Realizada</th></tr></thead>
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-400">
+                                <th class="py-3 px-3">Fecha y Hora</th>
+                                <th class="py-3 px-3">Tipo de Evento</th>
+                                <th class="py-3 px-3">Descripción de la Acción</th>
+                            </tr>
+                        </thead>
                         <tbody class="divide-y divide-slate-800">
-                            ${state.historialLogs.map(l => `<tr><td class="py-3 px-3 font-mono text-slate-400">${l.fecha}</td><td class="py-3 px-3"><span class="px-2 py-1 bg-blue-500/10 text-blue-400 rounded text-[10px]">${l.tipo}</span></td><td class="py-3 px-3 text-slate-200">${l.descripcion}</td></tr>`).join('')}
+                            ${state.historialLogs.map(l => `
+                                <tr>
+                                    <td class="py-3 px-3 font-mono text-slate-400">${l.fecha}</td>
+                                    <td class="py-3 px-3"><span class="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded text-[10px] font-semibold">${l.tipo}</span></td>
+                                    <td class="py-3 px-3 text-slate-200">${l.descripcion}</td>
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>
                 </div>
             `;
         }
 
-        function registrarPrestamo(e) {
+        function solicitarEquipo(e) {
             e.preventDefault();
-            const nombre = document.getElementById('presNombre').value.trim();
-            const equipo = document.getElementById('presEquipo').value.trim();
-            const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const profesor = document.getElementById('solProfesor').value;
+            const equipo = document.getElementById('solEquipo').value;
+            
+            const now = new Date();
+            const fecha = `Hoy, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
-            state.prestamos.unshift({ nombre, equipo, hora });
-            registrarLog('PRÉSTAMO', `Se registró préstamo de ${equipo} para ${nombre}`, 'blue');
-            saveState();
-            showToast('¡Préstamo registrado exitosamente!');
+            if (state.currentUser.role === 'Administrador') {
+                // Si es admin, lo aprueba de inmediato
+                state.prestamos.unshift({ id: Date.now(), profesor, equipo, fecha, estado: 'Activo' });
+                const codigoLimpio = equipo.split(' ')[0];
+                const eqObj = state.equipos.find(eq => eq.codigo === codigoLimpio);
+                if (eqObj) eqObj.estado = 'Prestado';
+
+                registrarLog('PRÉSTAMO', `Admin aprobó directamente préstamo de ${equipo} para ${profesor}`);
+                saveState();
+                showToast('¡Préstamo registrado correctamente!');
+            } else {
+                // Si es profesor/usuario, envía solicitud pendiente al admin
+                state.solicitudesPendientes.push({ id: Date.now(), profesor, equipo, fecha });
+                registrarLog('SOLICITUD', `El docente ${profesor} solicitó el equipo ${equipo}`);
+                saveState();
+                showToast('¡Solicitud enviada al Administrador con éxito!');
+            }
             render();
+        }
+
+        function aprobarSolicitud(id) {
+            const solicitud = state.solicitudesPendientes.find(s => s.id === id);
+            if (solicitud) {
+                // Remover de pendientes
+                state.solicitudesPendientes = state.solicitudesPendientes.filter(s => s.id !== id);
+
+                // Agregar a préstamos activos
+                const now = new Date();
+                const fecha = `Hoy, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                state.prestamos.unshift({ id: solicitud.id, profesor: solicitud.profesor, equipo: solicitud.equipo, fecha, estado: 'Activo' });
+
+                // Cambiar estado del equipo a Prestado
+                const codigoLimpio = solicitud.equipo.split(' ')[0];
+                const eqObj = state.equipos.find(eq => eq.codigo === codigoLimpio);
+                if (eqObj) eqObj.estado = 'Prestado';
+
+                registrarLog('APROBACIÓN', `Administrador aceptó solicitud de ${solicitud.equipo} para ${solicitud.profesor}`);
+                saveState();
+                showToast('¡Solicitud aceptada y equipo asignado!');
+                render();
+            }
+        }
+
+        function devolverPrestamo(id, equipoStr) {
+            const prestamo = state.prestamos.find(p => p.id === id);
+            if (prestamo) {
+                state.prestamos = state.prestamos.filter(p => p.id !== id);
+                const codigoLimpio = equipoStr.split(' ')[0];
+                const eqObj = state.equipos.find(e => e.codigo === codigoLimpio);
+                if (eqObj) eqObj.estado = 'Disponible';
+
+                registrarLog('DEVOLUCIÓN', `Se devolvió y liberó el equipo ${equipoStr}`);
+                saveState();
+                showToast('Equipo devuelto correctamente');
+                render();
+            }
         }
 
         function registrarEquipo(e) {
             e.preventDefault();
             const codigo = document.getElementById('eqCod').value.trim().toUpperCase();
+            const tipo = document.getElementById('eqTipo').value;
             const modelo = document.getElementById('eqMod').value.trim();
 
-            state.equipos.push({ codigo, modelo, estado: 'Disponible' });
-            registrarLog('EQUIPO', `Se añadió nuevo equipo al inventario: ${codigo} (${modelo})`, 'indigo');
+            if (state.equipos.some(eq => eq.codigo === codigo)) {
+                showToast('Ya existe un equipo con ese código', 'error');
+                return;
+            }
+
+            state.equipos.push({ codigo, tipo, modelo, estado: 'Disponible' });
+            registrarLog('EQUIPO', `Se añadió nuevo equipo al inventario: ${codigo} - ${modelo}`);
             saveState();
             showToast('¡Equipo agregado con éxito!');
+            render();
+        }
+
+        function registrarProfesor(e) {
+            e.preventDefault();
+            const cc = document.getElementById('profCc').value.trim();
+            const nombre = document.getElementById('profNombre').value.trim();
+            const depto = document.getElementById('profDepto').value.trim();
+
+            if (state.profesores.some(p => p.cc === cc)) {
+                showToast('Ya existe un profesor con esta cédula', 'error');
+                return;
+            }
+
+            state.profesores.push({ cc, nombre, depto });
+            registrarLog('PROFESOR', `Se registró al docente ${nombre} (CC: ${cc})`);
+            saveState();
+            showToast('¡Profesor agregado con éxito!');
             render();
         }
 
