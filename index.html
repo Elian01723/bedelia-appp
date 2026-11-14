@@ -176,12 +176,15 @@
                                 <span>Correo o contraseña incorrectos.</span>
                             </p>
 
-                            <div>
-                                <label class="flex items-center space-x-3 cursor-pointer select-none">
-                                    <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="termsAccepted = this.checked"
-                                        class="h-4 w-4 rounded border-slate-700 bg-slate-950 accent-blue-600 cursor-pointer">
-                                    <span class="text-xs text-slate-400">Acepto los términos y condiciones del sistema</span>
-                                </label>
+                            <div class="flex items-center space-x-2.5">
+                                <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="termsAccepted = this.checked"
+                                    class="h-4 w-4 rounded border-slate-700 bg-slate-950 accent-blue-600 cursor-pointer shrink-0">
+                                <span class="text-xs text-slate-400 select-none">
+                                    Acepto los 
+                                    <button type="button" onclick="abrirModalTerminos()" class="text-blue-400 hover:text-blue-300 underline font-medium focus:outline-none">
+                                        términos y condiciones del sistema
+                                    </button>
+                                </span>
                             </div>
 
                             <button type="submit" class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all">
@@ -489,7 +492,7 @@
                             </thead>
                             <tbody class="divide-y divide-slate-800">
                                 ${state.prestamos.length === 0 ? '<tr><td colspan="4" class="py-6 text-center text-slate-500">No hay préstamos activos registrados.</td></tr>' : 
-                                  state.prestamos.map(p => `
+                                    state.prestamos.map(p => `
                                     <tr>
                                         <td class="py-3 px-3 text-slate-200">${p.profesor}</td>
                                         <td class="py-3 px-3 font-mono text-blue-400">${p.equipo}</td>
@@ -498,7 +501,7 @@
                                             <button onclick="devolverPrestamo(${p.id}, '${p.equipo}')" class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-lg">Devolver</button>
                                         </td>
                                     </tr>
-                                  `).join('')}
+                                    `).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -537,11 +540,11 @@
                             <tbody class="divide-y divide-slate-800">
                                 ${state.equipos.map(e => `
                                     <tr>
-                                        <td class="py-3 px-3 font-mono text-blue-400 font-semibold">${e.codigo}</td>
-                                        <td class="py-3 px-3">${e.tipo}</td>
+                                        <td class="py-3 px-3 font-mono text-blue-400">${e.codigo}</td>
+                                        <td class="py-3 px-3 text-slate-300">${e.tipo}</td>
                                         <td class="py-3 px-3 text-slate-200">${e.modelo}</td>
                                         <td class="py-3 px-3">
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] font-medium ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                                            <span class="px-2.5 py-1 rounded-lg text-[10px] font-semibold ${e.estado === 'Disponible' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}">
                                                 ${e.estado}
                                             </span>
                                         </td>
@@ -556,127 +559,111 @@
 
         function renderProfesoresView() {
             return `
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Directorio de Docentes Registrados (Exclusivo Administrador)</h3>
-                    <table class="w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-slate-800 text-slate-400">
-                                <th class="py-3 px-3">Cédula (CC)</th>
-                                <th class="py-3 px-3">Nombre del Docente</th>
-                                <th class="py-3 px-3">Correo Institucional</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800">
-                            ${state.profesores.map(p => `
-                                <tr>
-                                    <td class="py-3 px-3 font-mono text-emerald-400">${p.cc}</td>
-                                    <td class="py-3 px-3 text-slate-200 font-medium">${p.nombre}</td>
-                                    <td class="py-3 px-3 text-slate-400">${p.email || 'N/A'}</td>
+                <div class="space-y-6">
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Directorio de Profesores Registrados (${state.profesores.length})</h3>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="py-3 px-3">Cédula</th>
+                                    <th class="py-3 px-3">Nombre</th>
+                                    <th class="py-3 px-3">Correo</th>
+                                    <th class="py-3 px-3">Departamento</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                ${state.profesores.map(p => `
+                                    <tr>
+                                        <td class="py-3 px-3 font-mono text-slate-400">${p.cc}</td>
+                                        <td class="py-3 px-3 font-medium text-white">${p.nombre}</td>
+                                        <td class="py-3 px-3 text-blue-400">${p.email}</td>
+                                        <td class="py-3 px-3 text-slate-300">${p.depto}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             `;
         }
 
         function renderHistorialView() {
             return `
-                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
-                    <h3 class="font-bold text-white text-sm">Auditoría y Constancias (Fecha y Hora - Exclusivo Administrador)</h3>
-                    <table class="w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-slate-800 text-slate-400">
-                                <th class="py-3 px-3">Fecha y Hora</th>
-                                <th class="py-3 px-3">Tipo de Evento</th>
-                                <th class="py-3 px-3">Descripción de la Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-800">
+                <div class="space-y-6">
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-4">
+                        <h3 class="font-bold text-white text-sm">Historial de Eventos y Logs en la Nube</h3>
+                        <div class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
                             ${state.historialLogs.map(l => `
-                                <tr>
-                                    <td class="py-3 px-3 font-mono text-slate-400">${l.fecha}</td>
-                                    <td class="py-3 px-3"><span class="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded text-[10px] font-semibold">${l.tipo}</span></td>
-                                    <td class="py-3 px-3 text-slate-200">${l.descripcion}</td>
-                                </tr>
+                                <div class="p-3 bg-slate-900 border border-slate-800/80 rounded-xl flex items-center justify-between text-xs">
+                                    <div>
+                                        <span class="px-2 py-0.5 bg-blue-500/10 text-blue-400 font-mono rounded text-[10px] mr-2">${l.tipo}</span>
+                                        <span class="text-slate-200">${l.descripcion}</span>
+                                    </div>
+                                    <span class="text-slate-500 text-[11px] shrink-0">${l.fecha}</span>
+                                </div>
                             `).join('')}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 </div>
             `;
         }
 
         function solicitarEquipo(e) {
             e.preventDefault();
-            const equipo = document.getElementById('solEquipo').value;
-            const profesor = state.currentUser.role === 'Administrador' 
-                ? document.getElementById('solProfesorAdmin').value 
-                : state.currentUser.name;
+            const equipoVal = document.getElementById('solEquipo').value;
+            const esAdmin = state.currentUser.role === 'Administrador';
+            const profesorNombre = esAdmin ? document.getElementById('solProfesorAdmin').value : state.currentUser.name;
 
-            const now = new Date();
-            const fecha = `Hoy, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-
-            if (state.currentUser.role === 'Administrador') {
-                state.prestamos.unshift({ id: Date.now(), profesor, equipo, fecha, estado: 'Activo' });
-                const codigoLimpio = equipo.split(' ')[0];
-                const eqObj = state.equipos.find(eq => eq.codigo === codigoLimpio);
-                if (eqObj) eqObj.estado = 'Prestado';
-
-                registrarLog('PRÉSTAMO', `Admin aprobó préstamo directo de ${equipo} para ${profesor}`);
+            if (esAdmin) {
+                const eqCodigo = equipoVal.split(' - ')[0];
+                state.prestamos.unshift({ id: Date.now(), profesor: profesorNombre, equipo: equipoVal, fecha: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+                const eq = state.equipos.find(item => item.codigo === eqCodigo);
+                if (eq) eq.estado = 'Prestado';
+                registrarLog('PRÉSTAMO', `Admin registró préstamo de ${equipoVal} a ${profesorNombre}`);
                 saveState();
-                showToast('¡Préstamo registrado correctamente!');
+                showToast('Préstamo registrado exitosamente');
             } else {
-                state.solicitudesPendientes.push({ id: Date.now(), profesor, equipo, fecha });
-                registrarLog('SOLICITUD', `El docente ${profesor} solicitó el equipo ${equipo}`);
+                state.solicitudesPendientes.push({ id: Date.now(), profesor: profesorNombre, equipo: equipoVal, fecha: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+                registrarLog('SOLICITUD', `Docente ${profesorNombre} solicitó el equipo ${equipoVal}`);
                 saveState();
-                showToast('¡Solicitud enviada al Administrador con éxito!');
+                showToast('Solicitud enviada al Administrador con éxito');
             }
+            render();
         }
 
         function aprobarSolicitud(id) {
-            const solicitud = state.solicitudesPendientes.find(s => s.id === id);
-            if (solicitud) {
-                state.solicitudesPendientes = state.solicitudesPendientes.filter(s => s.id !== id);
-                const now = new Date();
-                const fecha = `Hoy, ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-                state.prestamos.unshift({ id: solicitud.id, profesor: solicitud.profesor, equipo: solicitud.equipo, fecha, estado: 'Activo' });
-
-                const codigoLimpio = solicitud.equipo.split(' ')[0];
-                const eqObj = state.equipos.find(eq => eq.codigo === codigoLimpio);
-                if (eqObj) eqObj.estado = 'Prestado';
-
-                registrarLog('APROBACIÓN', `Administrador ACEPTÓ solicitud de ${solicitud.equipo} para ${solicitud.profesor}`);
-                saveState();
-                showToast('¡Solicitud aceptada y equipo asignado!');
-            }
+            const sol = state.solicitudesPendientes.find(s => s.id === id);
+            if (!sol) return;
+            state.solicitudesPendientes = state.solicitudesPendientes.filter(s => s.id !== id);
+            state.prestamos.unshift({ id: sol.id, profesor: sol.profesor, equipo: sol.equipo, fecha: sol.fecha });
+            const eqCodigo = sol.equipo.split(' - ')[0];
+            const eq = state.equipos.find(item => item.codigo === eqCodigo);
+            if (eq) eq.estado = 'Prestado';
+            registrarLog('APROBACIÓN', `Se aprobó préstamo de ${sol.equipo} para ${sol.profesor}`);
+            saveState();
+            showToast('Solicitud aceptada y equipo asignado');
+            render();
         }
 
         function rechazarSolicitudPrompt(id) {
-            const motivo = prompt('Ingrese el motivo del rechazo de la solicitud:');
-            if (motivo !== null) {
-                const motivoTexto = motivo.trim() !== '' ? motivo.trim() : 'Sin motivo especificado';
-                const solicitud = state.solicitudesPendientes.find(s => s.id === id);
-                if (solicitud) {
-                    state.solicitudesPendientes = state.solicitudesPendientes.filter(s => s.id !== id);
-                    registrarLog('RECHAZO', `Administrador RECHAZÓ solicitud de ${solicitud.equipo} para ${solicitud.profesor}. Motivo: ${motivoTexto}`);
-                    saveState();
-                    showToast('Solicitud rechazada correctamente', 'error');
-                }
-            }
+            const sol = state.solicitudesPendientes.find(s => s.id === id);
+            if (!sol) return;
+            state.solicitudesPendientes = state.solicitudesPendientes.filter(s => s.id !== id);
+            registrarLog('RECHAZO', `Se rechazó la solicitud de ${sol.equipo} para ${sol.profesor}`);
+            saveState();
+            showToast('Solicitud rechazada', 'error');
+            render();
         }
 
         function devolverPrestamo(id, equipoStr) {
-            const prestamo = state.prestamos.find(p => p.id === id);
-            if (prestamo) {
-                state.prestamos = state.prestamos.filter(p => p.id !== id);
-                let codigoLimpio = equipoStr.split(' ')[0];
-                const eqObj = state.equipos.find(e => e.codigo === codigoLimpio);
-                if (eqObj) eqObj.estado = 'Disponible';
-
-                registrarLog('DEVOLUCIÓN', `Se devolvió el equipo ${equipoStr}`);
-                saveState();
-                showToast('Equipo devuelto correctamente');
-            }
+            state.prestamos = state.prestamos.filter(p => p.id !== id);
+            const eqCodigo = equipoStr.split(' - ')[0];
+            const eq = state.equipos.find(item => item.codigo === eqCodigo);
+            if (eq) eq.estado = 'Disponible';
+            registrarLog('DEVOLUCIÓN', `Se registró la devolución del equipo ${equipoStr}`);
+            saveState();
+            showToast('Equipo devuelto y liberado correctamente');
+            render();
         }
 
         function registrarEquipo(e) {
@@ -685,15 +672,86 @@
             const tipo = document.getElementById('eqTipo').value;
             const modelo = document.getElementById('eqMod').value.trim();
 
-            if (state.equipos.some(eq => eq.codigo === codigo)) {
-                showToast('Ya existe un equipo con ese código', 'error');
+            if (state.equipos.some(e => e.codigo === codigo)) {
+                showToast('Ya existe un equipo con este código', 'error');
                 return;
             }
 
             state.equipos.push({ codigo, tipo, modelo, estado: 'Disponible' });
-            registrarLog('EQUIPO', `Se añadió equipo al inventario: ${codigo} - ${modelo}`);
+            registrarLog('INVENTARIO', `Nuevo equipo agregado: ${codigo} - ${modelo} (${tipo})`);
             saveState();
-            showToast('¡Equipo registrado con éxito!');
+            showToast('Equipo registrado en el inventario');
+            render();
+        }
+
+        // --- MODAL DE TÉRMINOS Y CONDICIONES ---
+        function abrirModalTerminos() {
+            let modal = document.getElementById('modalTerminos');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'modalTerminos';
+                modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm fade-in';
+                modal.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                        <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <i class="fa-solid fa-file-contract text-blue-400"></i>
+                                <h3 class="text-sm font-bold text-white">Términos y Condiciones - Bedelía U</h3>
+                            </div>
+                            <button type="button" onclick="cerrarModalTerminos()" class="text-slate-400 hover:text-white transition-colors">
+                                <i class="fa-solid fa-xmark text-base"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed text-justify">
+                            <div>
+                                <h4 class="font-bold text-blue-400 mb-1">1. Responsabilidad sobre los Equipos</h4>
+                                <p>El docente o usuario solicitante asume la responsabilidad total por el cuidado, custodia y buen uso de los equipos tecnológicos (video-beams, laptops, accesorios) desde su entrega hasta su devolución formal en Bedelía.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-blue-400 mb-1">2. Tiempos de Devolución</h4>
+                                <p>Los equipos deben devolverse puntualmente al finalizar el bloque académico asignado. El retraso injustificado podrá generar suspensión temporal del servicio de préstamos.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-blue-400 mb-1">3. Reporte de Fallas o Daños</h4>
+                                <p>Cualquier anomalía técnica al recibir el equipo debe notificarse de inmediato al administrador. Daños físicos por negligencia o mal uso serán asumidos conforme al reglamento institucional.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-blue-400 mb-1">4. Uso Exclusivamente Académico</h4>
+                                <p>Los recursos asignados son de uso estricto para actividades docentes, investigativas o administrativas dentro del campus universitario.</p>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-blue-400 mb-1">5. Privacidad y Sincronización Cloud</h4>
+                                <p>Los datos ingresados (nombre, correo institucional e historial de movimientos) se almacenan de forma segura en la nube únicamente para auditoría y control de inventario.</p>
+                            </div>
+                        </div>
+
+                        <div class="px-6 py-4 bg-slate-950 border-t border-slate-800 flex justify-end space-x-3">
+                            <button type="button" onclick="cerrarModalTerminos()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition-colors">
+                                Cerrar
+                            </button>
+                            <button type="button" onclick="aceptarDesdeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all">
+                                Leí y Acepto
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function cerrarModalTerminos() {
+            const modal = document.getElementById('modalTerminos');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function aceptarDesdeModal() {
+            termsAccepted = true;
+            const checkbox = document.getElementById('acceptTerms');
+            if (checkbox) checkbox.checked = true;
+            cerrarModalTerminos();
+            showToast('Términos y condiciones aceptados');
         }
     </script>
 </body>
