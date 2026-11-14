@@ -176,23 +176,12 @@
                                 <span>Correo o contraseña incorrectos.</span>
                             </p>
 
-                            <div class="flex items-center space-x-2.5">
-                                <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="termsAccepted = this.checked"
-                                    class="h-4 w-4 rounded border-slate-700 bg-slate-950 accent-blue-600 cursor-pointer shrink-0">
-                                <span class="text-xs text-slate-400 select-none">
-                                    Acepto los 
-                                    <button type="button" onclick="abrirModalTerminos()" class="text-blue-400 hover:text-blue-300 underline font-medium focus:outline-none">
-                                        términos y condiciones del sistema
-                                    </button>
-                                </span>
-                            </div>
-
                             <button type="submit" class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-600/30 transition-all">
                                 Iniciar Sesión en la Nube
                             </button>
 
                             <div class="text-center pt-2">
-                                <button type="button" onclick="authView='register'; render();" class="text-xs text-blue-400 hover:underline">
+                                <button type="button" onclick="termsAccepted=false; authView='register'; render();" class="text-xs text-blue-400 hover:underline">
                                     ¿No tienes cuenta? <strong>Regístrate como Docente</strong>
                                 </button>
                             </div>
@@ -233,6 +222,17 @@
                                     class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-200 text-sm focus:outline-none focus:border-indigo-500">
                             </div>
 
+                            <div class="flex items-start space-x-2.5 pt-1">
+                                <input type="checkbox" id="acceptTerms" ${termsAccepted ? 'checked' : ''} onchange="termsAccepted = this.checked"
+                                    class="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-950 accent-indigo-600 cursor-pointer shrink-0">
+                                <span class="text-xs text-slate-400 select-none leading-relaxed">
+                                    He leído y acepto los 
+                                    <button type="button" onclick="abrirModalTerminos()" class="text-indigo-400 hover:text-indigo-300 underline font-medium focus:outline-none">
+                                        términos, condiciones y tratamiento de datos
+                                    </button>
+                                </span>
+                            </div>
+
                             <button type="submit" class="w-full py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all">
                                 Registrar Cuenta Cloud
                             </button>
@@ -250,6 +250,10 @@
 
         function handleRegister(e) {
             e.preventDefault();
+            if (!termsAccepted) {
+                alert('Debes leer y aceptar los términos, condiciones y políticas de tratamiento de datos para registrarte.');
+                return;
+            }
             const nombre = document.getElementById('regNombre').value.trim();
             const correo = document.getElementById('regCorreo').value.trim().toLowerCase();
             const password = document.getElementById('regPass').value;
@@ -267,19 +271,16 @@
                 state.profesores.push({ cc: ccMock, nombre, email: correo, depto: 'Facultad Académica' });
             }
 
-            registrarLog('REGISTRO', `Nuevo docente registrado en la nube: ${nombre} (${correo})`);
+            registrarLog('REGISTRO', `Nuevo docente registrado en la nube (aceptó términos): ${nombre} (${correo})`);
             saveState();
             showToast('¡Cuenta de docente registrada con éxito!');
+            termsAccepted = false;
             authView = 'login';
             render();
         }
 
         function handleLogin(e) {
             e.preventDefault();
-            if (!termsAccepted) {
-                alert('Debes aceptar los términos y condiciones.');
-                return;
-            }
             const correo = document.getElementById('loginUser').value.trim().toLowerCase();
             const pass = document.getElementById('loginPass').value;
 
@@ -695,8 +696,8 @@
                     <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
                         <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
                             <div class="flex items-center space-x-2.5">
-                                <i class="fa-solid fa-file-contract text-blue-400"></i>
-                                <h3 class="text-sm font-bold text-white">Términos y Condiciones - Bedelía U</h3>
+                                <i class="fa-solid fa-file-contract text-indigo-400"></i>
+                                <h3 class="text-sm font-bold text-white">Términos, Condiciones y Tratamiento de Datos</h3>
                             </div>
                             <button type="button" onclick="cerrarModalTerminos()" class="text-slate-400 hover:text-white transition-colors">
                                 <i class="fa-solid fa-xmark text-base"></i>
@@ -705,24 +706,24 @@
                         
                         <div class="p-6 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed text-justify">
                             <div>
-                                <h4 class="font-bold text-blue-400 mb-1">1. Responsabilidad sobre los Equipos</h4>
+                                <h4 class="font-bold text-indigo-400 mb-1">1. Responsabilidad sobre los Equipos</h4>
                                 <p>El docente o usuario solicitante asume la responsabilidad total por el cuidado, custodia y buen uso de los equipos tecnológicos (video-beams, laptops, accesorios) desde su entrega hasta su devolución formal en Bedelía.</p>
                             </div>
                             <div>
-                                <h4 class="font-bold text-blue-400 mb-1">2. Tiempos de Devolución</h4>
+                                <h4 class="font-bold text-indigo-400 mb-1">2. Tiempos de Devolución</h4>
                                 <p>Los equipos deben devolverse puntualmente al finalizar el bloque académico asignado. El retraso injustificado podrá generar suspensión temporal del servicio de préstamos.</p>
                             </div>
                             <div>
-                                <h4 class="font-bold text-blue-400 mb-1">3. Reporte de Fallas o Daños</h4>
+                                <h4 class="font-bold text-indigo-400 mb-1">3. Reporte de Fallas o Daños</h4>
                                 <p>Cualquier anomalía técnica al recibir el equipo debe notificarse de inmediato al administrador. Daños físicos por negligencia o mal uso serán asumidos conforme al reglamento institucional.</p>
                             </div>
                             <div>
-                                <h4 class="font-bold text-blue-400 mb-1">4. Uso Exclusivamente Académico</h4>
+                                <h4 class="font-bold text-indigo-400 mb-1">4. Uso Exclusivamente Académico</h4>
                                 <p>Los recursos asignados son de uso estricto para actividades docentes, investigativas o administrativas dentro del campus universitario.</p>
                             </div>
                             <div>
-                                <h4 class="font-bold text-blue-400 mb-1">5. Privacidad y Sincronización Cloud</h4>
-                                <p>Los datos ingresados (nombre, correo institucional e historial de movimientos) se almacenan de forma segura en la nube únicamente para auditoría y control de inventario.</p>
+                                <h4 class="font-bold text-indigo-400 mb-1">5. Política de Tratamiento de Datos Personales</h4>
+                                <p>Al registrarse, el usuario autoriza el almacenamiento y tratamiento de sus datos personales (nombre completo, correo institucional e historial de movimientos) en nuestra base de datos en la nube, con fines exclusivos de auditoría, trazabilidad y control de inventario institucional.</p>
                             </div>
                         </div>
 
@@ -730,7 +731,7 @@
                             <button type="button" onclick="cerrarModalTerminos()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-900 transition-colors">
                                 Cerrar
                             </button>
-                            <button type="button" onclick="aceptarDesdeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all">
+                            <button type="button" onclick="aceptarDesdeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition-all">
                                 Leí y Acepto
                             </button>
                         </div>
@@ -751,7 +752,7 @@
             const checkbox = document.getElementById('acceptTerms');
             if (checkbox) checkbox.checked = true;
             cerrarModalTerminos();
-            showToast('Términos y condiciones aceptados');
+            showToast('Términos y tratamiento de datos aceptados');
         }
     </script>
 </body>
